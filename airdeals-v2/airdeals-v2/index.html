@@ -1,0 +1,1274 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AirDeals – Passagens Aéreas Baratas</title>
+<meta name="description" content="Monitore voos, receba alertas e economize em suas viagens com IA."/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      fontFamily: { sans: ['DM Sans', 'system-ui', 'sans-serif'] }
+    }
+  }
+}
+</script>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:'DM Sans',system-ui,sans-serif}
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-thumb{background:#374151;border-radius:2px}
+input[type="date"]::-webkit-calendar-picker-indicator{opacity:.4;cursor:pointer}
+.dark-date input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(1)}
+@keyframes pulse2{0%,100%{opacity:1}50%{opacity:.4}}
+@keyframes bounce2{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+@keyframes ping2{75%,100%{transform:scale(2);opacity:0}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.anim-pulse{animation:pulse2 2s ease-in-out infinite}
+.anim-bounce{animation:bounce2 1s infinite}
+.anim-ping{animation:ping2 1.5s ease-in-out infinite}
+.anim-fade{animation:fadeIn .3s ease forwards}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const {useState,useEffect,useRef,createElement:h,Fragment} = React;
+
+// ── SVG Icons ──────────────────────────────────────────────────────────────
+const svg = (content,s=20,extra="") => h('svg',{width:s,height:s,viewBox:"0 0 24 24",fill:"none",stroke:"currentColor",strokeWidth:"1.8",strokeLinecap:"round",strokeLinejoin:"round",className:extra,dangerouslySetInnerHTML:{__html:content}});
+const Plane = (p) => svg('<path d="M2 22h20"/><path d="M6.36 17.4 4 17l-2-4 1.1-.55a2 2 0 0 1 1.8 0l.17.1A2 2 0 0 0 6.8 12.5l.2-.1a2 2 0 0 0 1-1.73V6a2 2 0 0 1 2-2h5a2 2 0 0 1 2 2v4.5a2 2 0 0 0 1 1.73l.2.1a2 2 0 0 0 1.37.1l.17-.1a2 2 0 0 1 1.8 0L22 12.8 20 17l-2.36.4"/><path d="m9.5 10.5 2.5 2 2.5-2"/>',p.size||20,p.className||"");
+const Search = (p) => svg('<circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>',p.size||20,p.className||"");
+const Bell = (p) => svg('<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',p.size||20,p.className||"");
+const TrendDown = (p) => svg('<polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/>',p.size||20,p.className||"");
+const Pin = (p) => svg('<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>',p.size||20,p.className||"");
+const Cal = (p) => svg('<rect width="18" height="18" x="3" y="4" rx="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/>',p.size||20,p.className||"");
+const Users = (p) => svg('<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',p.size||20,p.className||"");
+const Arr = (p) => svg('<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',p.size||20,p.className||"");
+const Filter = (p) => svg('<polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>',p.size||20,p.className||"");
+const Sparkles = (p) => svg('<path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/>',p.size||20,p.className||"");
+const Moon = (p) => svg('<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',p.size||20,p.className||"");
+const Sun = (p) => svg('<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>',p.size||20,p.className||"");
+const Heart = (p) => h('svg',{width:p.size||20,height:p.size||20,viewBox:"0 0 24 24",fill:p.filled?"currentColor":"none",stroke:"currentColor",strokeWidth:"1.8",strokeLinecap:"round",strokeLinejoin:"round",className:p.className||"",dangerouslySetInnerHTML:{__html:'<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>'}});
+const Send = (p) => svg('<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>',p.size||20,p.className||"");
+const Bot = (p) => svg('<path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/>',p.size||20,p.className||"");
+const Globe = (p) => svg('<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>',p.size||20,p.className||"");
+const Zap = (p) => svg('<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>',p.size||20,p.className||"");
+const LogIn = (p) => svg('<path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" x2="3" y1="12" y2="12"/>',p.size||20,p.className||"");
+
+// ── Data ───────────────────────────────────────────────────────────────────
+// ── GLOBAL AIRPORTS DATABASE (500+ airports worldwide) ─────────────────────
+const AIRPORTS = [
+// ── BRASIL ──
+{code:"GRU",city:"São Paulo",country:"Brasil",name:"Guarulhos Int'l"},
+{code:"CGH",city:"São Paulo",country:"Brasil",name:"Congonhas"},
+{code:"VCP",city:"Campinas",country:"Brasil",name:"Viracopos Int'l"},
+{code:"GIG",city:"Rio de Janeiro",country:"Brasil",name:"Galeão Int'l"},
+{code:"SDU",city:"Rio de Janeiro",country:"Brasil",name:"Santos Dumont"},
+{code:"BSB",city:"Brasília",country:"Brasil",name:"Presidente JK"},
+{code:"SSA",city:"Salvador",country:"Brasil",name:"Luís E. Magalhães"},
+{code:"REC",city:"Recife",country:"Brasil",name:"Guararapes Int'l"},
+{code:"FOR",city:"Fortaleza",country:"Brasil",name:"Pinto Martins"},
+{code:"MAO",city:"Manaus",country:"Brasil",name:"Eduardo Gomes Int'l"},
+{code:"BEL",city:"Belém",country:"Brasil",name:"Val de Cans Int'l"},
+{code:"CWB",city:"Curitiba",country:"Brasil",name:"Afonso Pena Int'l"},
+{code:"POA",city:"Porto Alegre",country:"Brasil",name:"Salgado Filho Int'l"},
+{code:"FLN",city:"Florianópolis",country:"Brasil",name:"Hercílio Luz Int'l"},
+{code:"NAT",city:"Natal",country:"Brasil",name:"São Gonçalo do Amarante"},
+{code:"MCZ",city:"Maceió",country:"Brasil",name:"Zumbi dos Palmares"},
+{code:"AJU",city:"Aracaju",country:"Brasil",name:"Santa Maria"},
+{code:"THE",city:"Teresina",country:"Brasil",name:"Senador Petrônio Portella"},
+{code:"SLZ",city:"São Luís",country:"Brasil",name:"Marechal Cunha Machado"},
+{code:"BVB",city:"Boa Vista",country:"Brasil",name:"Atlas Brasil Cantanhede"},
+{code:"PMW",city:"Palmas",country:"Brasil",name:"Brigadeiro Lysias Rodrigues"},
+{code:"CGR",city:"Campo Grande",country:"Brasil",name:"Campo Grande Int'l"},
+{code:"CGB",city:"Cuiabá",country:"Brasil",name:"Marechal Rondon Int'l"},
+{code:"PVH",city:"Porto Velho",country:"Brasil",name:"Gov. Jorge Teixeira"},
+{code:"RBR",city:"Rio Branco",country:"Brasil",name:"Plácido de Castro Int'l"},
+{code:"MCP",city:"Macapá",country:"Brasil",name:"Alberto Alcolumbre Int'l"},
+{code:"JPA",city:"João Pessoa",country:"Brasil",name:"Castro Pinto Int'l"},
+{code:"VIX",city:"Vitória",country:"Brasil",name:"Eurico de Aguiar Salles"},
+{code:"BHZ",city:"Belo Horizonte",country:"Brasil",name:"Tancredo Neves Int'l"},
+{code:"PLU",city:"Belo Horizonte",country:"Brasil",name:"Pampulha"},
+{code:"GYN",city:"Goiânia",country:"Brasil",name:"Santa Genoveva"},
+{code:"MNX",city:"Manicoré",country:"Brasil",name:"Manicoré Airport"},
+{code:"IOS",city:"Ilhéus",country:"Brasil",name:"Jorge Amado Airport"},
+{code:"PMG",city:"Ponta Porã",country:"Brasil",name:"Ponta Porã Int'l"},
+{code:"UDI",city:"Uberlândia",country:"Brasil",name:"Ten. Cel. Av. César Bombonato"},
+{code:"RAO",city:"Ribeirão Preto",country:"Brasil",name:"Leite Lopes"},
+{code:"JOI",city:"Joinville",country:"Brasil",name:"Lauro Carneiro de Loyola"},
+{code:"BNU",city:"Blumenau",country:"Brasil",name:"Blumenau Airport"},
+{code:"NVT",city:"Navegantes",country:"Brasil",name:"Ministro Victor Konder"},
+{code:"LDB",city:"Londrina",country:"Brasil",name:"Governador José Richa"},
+{code:"MGF",city:"Maringá",country:"Brasil",name:"Regional de Maringá"},
+{code:"CAC",city:"Cascavel",country:"Brasil",name:"Cascavel Airport"},
+{code:"FIG",city:"Figueirópolis",country:"Brasil",name:"Figueirópolis Airport"},
+{code:"PPB",city:"Presidente Prudente",country:"Brasil",name:"Presidente Prudente Airport"},
+{code:"AQA",city:"Araraquara",country:"Brasil",name:"Araraquara Airport"},
+{code:"QCJ",city:"Botucatu",country:"Brasil",name:"Botucatu Airport"},
+{code:"SJP",city:"São José do Rio Preto",country:"Brasil",name:"Iguatemi Airport"},
+{code:"BAU",city:"Bauru",country:"Brasil",name:"Bauru Airport"},
+{code:"OLC",city:"São Paulo de Olivença",country:"Brasil",name:"São Paulo de Olivença Airport"},
+{code:"IPN",city:"Ipatinga",country:"Brasil",name:"Usiminas Airport"},
+{code:"MOC",city:"Montes Claros",country:"Brasil",name:"Mário Ribeiro Airport"},
+{code:"TFF",city:"Tefé",country:"Brasil",name:"Tefé Airport"},
+{code:"STM",city:"Santarém",country:"Brasil",name:"Maestro Wilson Fonseca"},
+// ── SOUTH AMERICA ──
+{code:"EZE",city:"Buenos Aires",country:"Argentina",name:"Ministro Pistarini Int'l"},
+{code:"AEP",city:"Buenos Aires",country:"Argentina",name:"Jorge Newbery Airfield"},
+{code:"COR",city:"Córdoba",country:"Argentina",name:"Ingeniero Taravella Int'l"},
+{code:"MDZ",city:"Mendoza",country:"Argentina",name:"El Plumerillo Int'l"},
+{code:"ROS",city:"Rosario",country:"Argentina",name:"Islas Malvinas Int'l"},
+{code:"BRC",city:"Bariloche",country:"Argentina",name:"Teniente Candelaria Int'l"},
+{code:"IGR",city:"Iguazú",country:"Argentina",name:"Cataratas del Iguazú Int'l"},
+{code:"USH",city:"Ushuaia",country:"Argentina",name:"Malvinas Argentinas Int'l"},
+{code:"SCL",city:"Santiago",country:"Chile",name:"Arturo Merino Benítez Int'l"},
+{code:"PMC",city:"Puerto Montt",country:"Chile",name:"El Tepual Int'l"},
+{code:"CJC",city:"Calama",country:"Chile",name:"El Loa Airport"},
+{code:"ANF",city:"Antofagasta",country:"Chile",name:"Andrés Sabella Gálvez Int'l"},
+{code:"IQQ",city:"Iquique",country:"Chile",name:"Diego Aracena Int'l"},
+{code:"LIM",city:"Lima",country:"Peru",name:"Jorge Chávez Int'l"},
+{code:"CUZ",city:"Cusco",country:"Peru",name:"Alejandro Velasco Astete Int'l"},
+{code:"BOG",city:"Bogotá",country:"Colômbia",name:"El Dorado Int'l"},
+{code:"MDE",city:"Medellín",country:"Colômbia",name:"José María Córdova Int'l"},
+{code:"CLO",city:"Cali",country:"Colômbia",name:"Alfonso Bonilla Aragón Int'l"},
+{code:"CTG",city:"Cartagena",country:"Colômbia",name:"Rafael Núñez Int'l"},
+{code:"GYE",city:"Guayaquil",country:"Equador",name:"José Joaquín de Olmedo Int'l"},
+{code:"UIO",city:"Quito",country:"Equador",name:"Mariscal Sucre Int'l"},
+{code:"CCS",city:"Caracas",country:"Venezuela",name:"Simón Bolívar Int'l"},
+{code:"MVD",city:"Montevidéu",country:"Uruguai",name:"Carrasco Int'l"},
+{code:"ASU",city:"Assunção",country:"Paraguai",name:"Silvio Pettirossi Int'l"},
+{code:"VVI",city:"Santa Cruz",country:"Bolívia",name:"Viru Viru Int'l"},
+{code:"LPB",city:"La Paz",country:"Bolívia",name:"El Alto Int'l"},
+{code:"GEO",city:"Georgetown",country:"Guiana",name:"Cheddi Jagan Int'l"},
+{code:"PBM",city:"Paramaribo",country:"Suriname",name:"Johan Adolf Pengel Int'l"},
+{code:"CAY",city:"Caiena",country:"Guiana Francesa",name:"Félix Éboué Int'l"},
+{code:"PMV",city:"Porlamar",country:"Venezuela",name:"Del Caribe Int'l"},
+{code:"PUQ",city:"Punta Arenas",country:"Chile",name:"Carlos Ibáñez del Campo Int'l"},
+{code:"IQT",city:"Iquitos",country:"Peru",name:"Coronel FAP Francisco Secada Int'l"},
+{code:"AQP",city:"Arequipa",country:"Peru",name:"Alfredo Rodríguez Ballón Int'l"},
+// ── NORTH AMERICA ──
+{code:"JFK",city:"Nova York",country:"EUA",name:"John F. Kennedy Int'l"},
+{code:"LGA",city:"Nova York",country:"EUA",name:"LaGuardia"},
+{code:"EWR",city:"Newark",country:"EUA",name:"Newark Liberty Int'l"},
+{code:"LAX",city:"Los Angeles",country:"EUA",name:"Los Angeles Int'l"},
+{code:"ORD",city:"Chicago",country:"EUA",name:"O'Hare Int'l"},
+{code:"MDW",city:"Chicago",country:"EUA",name:"Midway Int'l"},
+{code:"ATL",city:"Atlanta",country:"EUA",name:"Hartsfield-Jackson Atlanta Int'l"},
+{code:"MIA",city:"Miami",country:"EUA",name:"Miami Int'l"},
+{code:"FLL",city:"Fort Lauderdale",country:"EUA",name:"Fort Lauderdale-Hollywood Int'l"},
+{code:"DFW",city:"Dallas",country:"EUA",name:"Dallas/Fort Worth Int'l"},
+{code:"DAL",city:"Dallas",country:"EUA",name:"Love Field"},
+{code:"DEN",city:"Denver",country:"EUA",name:"Denver Int'l"},
+{code:"SFO",city:"San Francisco",country:"EUA",name:"San Francisco Int'l"},
+{code:"SJC",city:"San Jose",country:"EUA",name:"Norman Y. Mineta San José Int'l"},
+{code:"OAK",city:"Oakland",country:"EUA",name:"Oakland Int'l"},
+{code:"SEA",city:"Seattle",country:"EUA",name:"Seattle-Tacoma Int'l"},
+{code:"LAS",city:"Las Vegas",country:"EUA",name:"Harry Reid Int'l"},
+{code:"PHX",city:"Phoenix",country:"EUA",name:"Sky Harbor Int'l"},
+{code:"IAH",city:"Houston",country:"EUA",name:"George Bush Int'l"},
+{code:"HOU",city:"Houston",country:"EUA",name:"William P. Hobby"},
+{code:"MCO",city:"Orlando",country:"EUA",name:"Orlando Int'l"},
+{code:"TPA",city:"Tampa",country:"EUA",name:"Tampa Int'l"},
+{code:"BOS",city:"Boston",country:"EUA",name:"Logan Int'l"},
+{code:"DCA",city:"Washington",country:"EUA",name:"Ronald Reagan Washington Nat'l"},
+{code:"IAD",city:"Washington",country:"EUA",name:"Dulles Int'l"},
+{code:"BWI",city:"Baltimore",country:"EUA",name:"Baltimore/Washington Int'l"},
+{code:"MSP",city:"Minneapolis",country:"EUA",name:"Minneapolis-Saint Paul Int'l"},
+{code:"DTW",city:"Detroit",country:"EUA",name:"Detroit Metropolitan Int'l"},
+{code:"PHL",city:"Filadélfia",country:"EUA",name:"Philadelphia Int'l"},
+{code:"CLT",city:"Charlotte",country:"EUA",name:"Douglas Int'l"},
+{code:"SLC",city:"Salt Lake City",country:"EUA",name:"Salt Lake City Int'l"},
+{code:"PDX",city:"Portland",country:"EUA",name:"Portland Int'l"},
+{code:"AUS",city:"Austin",country:"EUA",name:"Austin-Bergstrom Int'l"},
+{code:"SAN",city:"San Diego",country:"EUA",name:"San Diego Int'l"},
+{code:"MSY",city:"Nova Orleans",country:"EUA",name:"Louis Armstrong New Orleans Int'l"},
+{code:"MCI",city:"Kansas City",country:"EUA",name:"Kansas City Int'l"},
+{code:"STL",city:"St. Louis",country:"EUA",name:"Lambert-St. Louis Int'l"},
+{code:"CMH",city:"Columbus",country:"EUA",name:"John Glenn Columbus Int'l"},
+{code:"IND",city:"Indianápolis",country:"EUA",name:"Indianapolis Int'l"},
+{code:"MEM",city:"Memphis",country:"EUA",name:"Memphis Int'l"},
+{code:"BNA",city:"Nashville",country:"EUA",name:"Nashville Int'l"},
+{code:"RDU",city:"Raleigh-Durham",country:"EUA",name:"Raleigh-Durham Int'l"},
+{code:"HNL",city:"Honolulu",country:"EUA",name:"Daniel K. Inouye Int'l"},
+{code:"ANC",city:"Anchorage",country:"EUA",name:"Ted Stevens Anchorage Int'l"},
+{code:"ORF",city:"Norfolk",country:"EUA",name:"Norfolk Int'l"},
+{code:"SJU",city:"San Juan",country:"Porto Rico",name:"Luis Muñoz Marín Int'l"},
+{code:"YYZ",city:"Toronto",country:"Canadá",name:"Pearson Int'l"},
+{code:"YUL",city:"Montreal",country:"Canadá",name:"Pierre Elliott Trudeau Int'l"},
+{code:"YVR",city:"Vancouver",country:"Canadá",name:"Vancouver Int'l"},
+{code:"YYC",city:"Calgary",country:"Canadá",name:"Calgary Int'l"},
+{code:"YEG",city:"Edmonton",country:"Canadá",name:"Edmonton Int'l"},
+{code:"YOW",city:"Ottawa",country:"Canadá",name:"Ottawa Macdonald-Cartier Int'l"},
+{code:"YHZ",city:"Halifax",country:"Canadá",name:"Stanfield Int'l"},
+{code:"MEX",city:"Cidade do México",country:"México",name:"Benito Juárez Int'l"},
+{code:"CUN",city:"Cancún",country:"México",name:"Cancún Int'l"},
+{code:"GDL",city:"Guadalajara",country:"México",name:"Miguel Hidalgo y Costilla Int'l"},
+{code:"MTY",city:"Monterrey",country:"México",name:"General Mariano Escobedo Int'l"},
+{code:"TIJ",city:"Tijuana",country:"México",name:"General Abelardo L. Rodríguez Int'l"},
+{code:"SJD",city:"Los Cabos",country:"México",name:"Los Cabos Int'l"},
+{code:"PVR",city:"Puerto Vallarta",country:"México",name:"Licenciado Gustavo Díaz Ordaz Int'l"},
+{code:"MZT",city:"Mazatlán",country:"México",name:"Rafael Buelna Int'l"},
+{code:"ZIH",city:"Ixtapa-Zihuatanejo",country:"México",name:"Ixtapa-Zihuatanejo Int'l"},
+{code:"HAV",city:"Havana",country:"Cuba",name:"José Martí Int'l"},
+{code:"SDQ",city:"Santo Domingo",country:"Rep. Dominicana",name:"Las Américas Int'l"},
+{code:"PUJ",city:"Punta Cana",country:"Rep. Dominicana",name:"Punta Cana Int'l"},
+{code:"GUA",city:"Cidade da Guatemala",country:"Guatemala",name:"La Aurora Int'l"},
+{code:"SAL",city:"San Salvador",country:"El Salvador",name:"Monseñor Óscar Arnulfo Romero Int'l"},
+{code:"SAP",city:"San Pedro Sula",country:"Honduras",name:"Ramón Villeda Morales Int'l"},
+{code:"MGA",city:"Manágua",country:"Nicarágua",name:"Augusto C. Sandino Int'l"},
+{code:"SJO",city:"San José",country:"Costa Rica",name:"Juan Santamaría Int'l"},
+{code:"PTY",city:"Cidade do Panamá",country:"Panamá",name:"Tocumen Int'l"},
+{code:"PAP",city:"Porto Príncipe",country:"Haiti",name:"Toussaint Louverture Int'l"},
+{code:"KIN",city:"Kingston",country:"Jamaica",name:"Norman Manley Int'l"},
+{code:"BGI",city:"Bridgetown",country:"Barbados",name:"Grantley Adams Int'l"},
+{code:"POS",city:"Port of Spain",country:"Trinidad e Tobago",name:"Piarco Int'l"},
+{code:"ANU",city:"St. John's",country:"Antígua e Barbuda",name:"V.C. Bird Int'l"},
+// ── EUROPE ──
+{code:"LHR",city:"Londres",country:"Reino Unido",name:"Heathrow"},
+{code:"LGW",city:"Londres",country:"Reino Unido",name:"Gatwick"},
+{code:"STN",city:"Londres",country:"Reino Unido",name:"Stansted"},
+{code:"LTN",city:"Londres",country:"Reino Unido",name:"Luton"},
+{code:"MAN",city:"Manchester",country:"Reino Unido",name:"Manchester Airport"},
+{code:"BHX",city:"Birmingham",country:"Reino Unido",name:"Birmingham Airport"},
+{code:"EDI",city:"Edimburgo",country:"Reino Unido",name:"Edinburgh Airport"},
+{code:"GLA",city:"Glasgow",country:"Reino Unido",name:"Glasgow Airport"},
+{code:"BRS",city:"Bristol",country:"Reino Unido",name:"Bristol Airport"},
+{code:"CDG",city:"Paris",country:"França",name:"Charles de Gaulle"},
+{code:"ORY",city:"Paris",country:"França",name:"Orly"},
+{code:"NCE",city:"Nice",country:"França",name:"Côte d'Azur"},
+{code:"MRS",city:"Marselha",country:"França",name:"Provence Airport"},
+{code:"LYS",city:"Lyon",country:"França",name:"Saint-Exupéry"},
+{code:"BOD",city:"Bordeaux",country:"França",name:"Mérignac"},
+{code:"TLS",city:"Toulouse",country:"França",name:"Blagnac"},
+{code:"NTE",city:"Nantes",country:"França",name:"Atlantique"},
+{code:"MAD",city:"Madrid",country:"Espanha",name:"Adolfo Suárez Barajas"},
+{code:"BCN",city:"Barcelona",country:"Espanha",name:"Josep Tarradellas El Prat"},
+{code:"AGP",city:"Málaga",country:"Espanha",name:"Costa del Sol"},
+{code:"VLC",city:"Valência",country:"Espanha",name:"Manises"},
+{code:"SVQ",city:"Sevilha",country:"Espanha",name:"San Pablo"},
+{code:"BIO",city:"Bilbao",country:"Espanha",name:"Loiu"},
+{code:"TFN",city:"Tenerife",country:"Espanha",name:"Norte Los Rodeos"},
+{code:"TFS",city:"Tenerife",country:"Espanha",name:"Sur Reina Sofía"},
+{code:"LPA",city:"Gran Canária",country:"Espanha",name:"Gran Canária Int'l"},
+{code:"PMI",city:"Palma de Maiorca",country:"Espanha",name:"Son Sant Joan"},
+{code:"IBZ",city:"Ibiza",country:"Espanha",name:"Ibiza Airport"},
+{code:"LIS",city:"Lisboa",country:"Portugal",name:"Humberto Delgado"},
+{code:"OPO",city:"Porto",country:"Portugal",name:"Francisco Sá Carneiro"},
+{code:"FAO",city:"Faro",country:"Portugal",name:"Faro Airport"},
+{code:"FRA",city:"Frankfurt",country:"Alemanha",name:"Frankfurt am Main"},
+{code:"MUC",city:"Munique",country:"Alemanha",name:"Franz Josef Strauss"},
+{code:"TXL",city:"Berlim",country:"Alemanha",name:"Tegel"},
+{code:"BER",city:"Berlim",country:"Alemanha",name:"Brandenburg Int'l"},
+{code:"DUS",city:"Düsseldorf",country:"Alemanha",name:"Düsseldorf Airport"},
+{code:"HAM",city:"Hamburgo",country:"Alemanha",name:"Hamburg Airport"},
+{code:"STR",city:"Stuttgart",country:"Alemanha",name:"Stuttgart Airport"},
+{code:"CGN",city:"Colônia",country:"Alemanha",name:"Cologne Bonn"},
+{code:"NUE",city:"Nuremberg",country:"Alemanha",name:"Nuremberg Airport"},
+{code:"AMS",city:"Amsterdã",country:"Países Baixos",name:"Schiphol"},
+{code:"BRU",city:"Bruxelas",country:"Bélgica",name:"Brussels Airport"},
+{code:"ZRH",city:"Zurique",country:"Suíça",name:"Zürich Airport"},
+{code:"GVA",city:"Genebra",country:"Suíça",name:"Geneva Airport"},
+{code:"VIE",city:"Viena",country:"Áustria",name:"Vienna Int'l"},
+{code:"FCO",city:"Roma",country:"Itália",name:"Leonardo da Vinci–Fiumicino"},
+{code:"MXP",city:"Milão",country:"Itália",name:"Malpensa"},
+{code:"LIN",city:"Milão",country:"Itália",name:"Linate"},
+{code:"VCE",city:"Veneza",country:"Itália",name:"Marco Polo"},
+{code:"NAP",city:"Nápoles",country:"Itália",name:"Naples Int'l"},
+{code:"BLQ",city:"Bolonha",country:"Itália",name:"Guglielmo Marconi"},
+{code:"PMO",city:"Palermo",country:"Itália",name:"Falcone–Borsellino"},
+{code:"OSL",city:"Oslo",country:"Noruega",name:"Gardermoen Int'l"},
+{code:"BGO",city:"Bergen",country:"Noruega",name:"Flesland Airport"},
+{code:"CPH",city:"Copenhague",country:"Dinamarca",name:"Kastrup"},
+{code:"ARN",city:"Estocolmo",country:"Suécia",name:"Arlanda Int'l"},
+{code:"HEL",city:"Helsinque",country:"Finlândia",name:"Helsinki-Vantaa"},
+{code:"WAW",city:"Varsóvia",country:"Polônia",name:"Frederic Chopin"},
+{code:"KRK",city:"Cracóvia",country:"Polônia",name:"John Paul II Int'l"},
+{code:"PRG",city:"Praga",country:"República Tcheca",name:"Václav Havel"},
+{code:"BUD",city:"Budapeste",country:"Hungria",name:"Ferenc Liszt Int'l"},
+{code:"OTP",city:"Bucareste",country:"Romênia",name:"Henri Coandă Int'l"},
+{code:"SOF",city:"Sófia",country:"Bulgária",name:"Sofia Airport"},
+{code:"ATH",city:"Atenas",country:"Grécia",name:"Eleftherios Venizelos"},
+{code:"SKG",city:"Thessaloniki",country:"Grécia",name:"Makedonia Airport"},
+{code:"HER",city:"Heraklion",country:"Grécia",name:"Nikos Kazantzakis"},
+{code:"RHO",city:"Rodes",country:"Grécia",name:"Diagoras Airport"},
+{code:"IST",city:"Istambul",country:"Turquia",name:"Istanbul Airport"},
+{code:"SAW",city:"Istambul",country:"Turquia",name:"Sabiha Gökçen Int'l"},
+{code:"ESB",city:"Ancara",country:"Turquia",name:"Esenboğa Int'l"},
+{code:"AYT",city:"Antalya",country:"Turquia",name:"Antalya Airport"},
+{code:"DLM",city:"Dalaman",country:"Turquia",name:"Dalaman Airport"},
+{code:"ADB",city:"Esmirna",country:"Turquia",name:"Adnan Menderes"},
+{code:"SVO",city:"Moscou",country:"Rússia",name:"Sheremetyevo Int'l"},
+{code:"DME",city:"Moscou",country:"Rússia",name:"Domodedovo Int'l"},
+{code:"LED",city:"São Petersburgo",country:"Rússia",name:"Pulkovo"},
+{code:"KBP",city:"Kiev",country:"Ucrânia",name:"Boryspil Int'l"},
+{code:"LWO",city:"Lviv",country:"Ucrânia",name:"Danylo Halytskyi Int'l"},
+{code:"RIX",city:"Riga",country:"Letônia",name:"Riga Int'l"},
+{code:"TLL",city:"Tallinn",country:"Estônia",name:"Lennart Meri Int'l"},
+{code:"VNO",city:"Vilnius",country:"Lituânia",name:"Vilnius Int'l"},
+{code:"DUB",city:"Dublin",country:"Irlanda",name:"Dublin Airport"},
+{code:"LIS",city:"Lisboa",country:"Portugal",name:"Humberto Delgado"},
+{code:"REK",city:"Reykjavik",country:"Islândia",name:"Keflavik Int'l"},
+{code:"HRG",city:"Hurghada",country:"Egito",name:"Hurghada Int'l"},
+{code:"SSH",city:"Sharm el-Sheikh",country:"Egito",name:"Ophira Int'l"},
+{code:"SKP",city:"Skopje",country:"Macedônia do Norte",name:"Alexander the Great Int'l"},
+{code:"LJU",city:"Liubliana",country:"Eslovênia",name:"Jože Pučnik"},
+{code:"ZAG",city:"Zagreb",country:"Croácia",name:"Franjo Tuđman"},
+{code:"SPU",city:"Split",country:"Croácia",name:"Split Airport"},
+{code:"DBV",city:"Dubrovnik",country:"Croácia",name:"Dubrovnik Airport"},
+{code:"BEG",city:"Belgrado",country:"Sérvia",name:"Nikola Tesla Int'l"},
+{code:"TIA",city:"Tirana",country:"Albânia",name:"Mother Teresa Int'l"},
+{code:"OHD",city:"Ohrid",country:"Macedônia do Norte",name:"Ohrid St. Paul the Apostle"},
+{code:"MSQ",city:"Minsk",country:"Bielorrússia",name:"Minsk Int'l"},
+{code:"GYD",city:"Baku",country:"Azerbaijão",name:"Heydar Aliyev Int'l"},
+{code:"EVN",city:"Yerevan",country:"Armênia",name:"Zvartnots Int'l"},
+{code:"TBS",city:"Tbilisi",country:"Geórgia",name:"Shota Rustaveli Int'l"},
+{code:"NIC",city:"Nicósia",country:"Chipre",name:"Larnaca Int'l"},
+{code:"LCA",city:"Larnaca",country:"Chipre",name:"Larnaca Int'l"},
+{code:"PFO",city:"Paphos",country:"Chipre",name:"Paphos Int'l"},
+{code:"TGD",city:"Podgorica",country:"Montenegro",name:"Podgorica Airport"},
+{code:"TIV",city:"Tivat",country:"Montenegro",name:"Tivat Airport"},
+{code:"SJJ",city:"Sarajevo",country:"Bósnia",name:"Sarajevo Int'l"},
+// ── MIDDLE EAST ──
+{code:"DXB",city:"Dubai",country:"Emirados Árabes",name:"Dubai Int'l"},
+{code:"AUH",city:"Abu Dhabi",country:"Emirados Árabes",name:"Zayed Int'l"},
+{code:"SHJ",city:"Sharjah",country:"Emirados Árabes",name:"Sharjah Int'l"},
+{code:"DOH",city:"Doha",country:"Catar",name:"Hamad Int'l"},
+{code:"BAH",city:"Manama",country:"Barein",name:"Bahrain Int'l"},
+{code:"MCT",city:"Mascate",country:"Omã",name:"Muscat Int'l"},
+{code:"KWI",city:"Kuwait City",country:"Kuwait",name:"Kuwait Int'l"},
+{code:"RUH",city:"Riade",country:"Arábia Saudita",name:"King Khalid Int'l"},
+{code:"JED",city:"Jidá",country:"Arábia Saudita",name:"King Abdulaziz Int'l"},
+{code:"MED",city:"Medina",country:"Arábia Saudita",name:"Prince Mohammad bin Abdulaziz"},
+{code:"TLV",city:"Tel Aviv",country:"Israel",name:"Ben Gurion Int'l"},
+{code:"AMM",city:"Amã",country:"Jordânia",name:"Queen Alia Int'l"},
+{code:"BEY",city:"Beirute",country:"Líbano",name:"Rafic Hariri Int'l"},
+{code:"DAM",city:"Damasco",country:"Síria",name:"Damascus Int'l"},
+{code:"BGW",city:"Bagdá",country:"Iraque",name:"Baghdad Int'l"},
+{code:"IKA",city:"Teerã",country:"Irã",name:"Imam Khomeini Int'l"},
+{code:"THR",city:"Teerã",country:"Irã",name:"Mehrabad Int'l"},
+{code:"MHD",city:"Mashhad",country:"Irã",name:"Mashhad Int'l"},
+{code:"ISF",city:"Isfahan",country:"Irã",name:"Isfahan Int'l"},
+{code:"KBL",city:"Cabul",country:"Afeganistão",name:"Kabul Int'l"},
+// ── AFRICA ──
+{code:"CAI",city:"Cairo",country:"Egito",name:"Cairo Int'l"},
+{code:"CMN",city:"Casablanca",country:"Marrocos",name:"Mohammed V Int'l"},
+{code:"RAK",city:"Marraquexe",country:"Marrocos",name:"Menara Airport"},
+{code:"TNG",city:"Tânger",country:"Marrocos",name:"Ibn Batouta Int'l"},
+{code:"TUN",city:"Túnis",country:"Tunísia",name:"Carthage Int'l"},
+{code:"ALG",city:"Argel",country:"Argélia",name:"Houari Boumediene"},
+{code:"TRI",city:"Trípoli",country:"Líbia",name:"Mitiga Int'l"},
+{code:"KRT",city:"Cartum",country:"Sudão",name:"Khartoum Int'l"},
+{code:"ADD",city:"Adis Abeba",country:"Etiópia",name:"Bole Int'l"},
+{code:"NBO",city:"Nairóbi",country:"Quênia",name:"Jomo Kenyatta Int'l"},
+{code:"MBA",city:"Mombasa",country:"Quênia",name:"Moi Int'l"},
+{code:"DAR",city:"Dar es Salaam",country:"Tanzânia",name:"Julius Nyerere Int'l"},
+{code:"JRO",city:"Kilimanjaro",country:"Tanzânia",name:"Kilimanjaro Int'l"},
+{code:"ZNZ",city:"Zanzibar",country:"Tanzânia",name:"Abeid Amani Karume Int'l"},
+{code:"EBB",city:"Campala",country:"Uganda",name:"Entebbe Int'l"},
+{code:"KGL",city:"Kigali",country:"Ruanda",name:"Kigali Int'l"},
+{code:"DLA",city:"Douala",country:"Camarões",name:"Douala Int'l"},
+{code:"ABV",city:"Abuja",country:"Nigéria",name:"Nnamdi Azikiwe Int'l"},
+{code:"LOS",city:"Lagos",country:"Nigéria",name:"Murtala Muhammed Int'l"},
+{code:"ACC",city:"Acra",country:"Gana",name:"Kotoka Int'l"},
+{code:"ABJ",city:"Abidjan",country:"Costa do Marfim",name:"Félix-Houphouët-Boigny"},
+{code:"DKR",city:"Dakar",country:"Senegal",name:"Blaise Diagne Int'l"},
+{code:"BJL",city:"Banjul",country:"Gâmbia",name:"Banjul Int'l"},
+{code:"JNB",city:"Joanesburgo",country:"África do Sul",name:"OR Tambo Int'l"},
+{code:"CPT",city:"Cidade do Cabo",country:"África do Sul",name:"Cape Town Int'l"},
+{code:"DUR",city:"Durban",country:"África do Sul",name:"King Shaka Int'l"},
+{code:"HRE",city:"Harare",country:"Zimbabwe",name:"Robert Gabriel Mugabe Int'l"},
+{code:"LUN",city:"Lusaka",country:"Zâmbia",name:"Kenneth Kaunda Int'l"},
+{code:"LAD",city:"Luanda",country:"Angola",name:"Quatro de Fevereiro Int'l"},
+{code:"TNR",city:"Antananarivo",country:"Madagascar",name:"Ivato Int'l"},
+{code:"MRU",city:"Ilhas Maurício",country:"Maurício",name:"Sir Seewoosagur Ramgoolam Int'l"},
+{code:"SEZ",city:"Mahé",country:"Seicheles",name:"Seychelles Int'l"},
+{code:"RUN",city:"Saint-Denis",country:"Reunião",name:"Roland Garros"},
+{code:"MPM",city:"Maputo",country:"Moçambique",name:"Maputo Int'l"},
+{code:"BKO",city:"Bamaco",country:"Mali",name:"Modibo Keita Int'l"},
+{code:"OUA",city:"Ouagadougou",country:"Burkina Faso",name:"Ouagadougou Int'l"},
+{code:"NIM",city:"Niamei",country:"Níger",name:"Diori Hamani Int'l"},
+{code:"HAH",city:"Moroni",country:"Comores",name:"Prince Said Ibrahim Int'l"},
+{code:"FIH",city:"Kinshasa",country:"RD Congo",name:"N'djili Int'l"},
+// ── ASIA ──
+{code:"PEK",city:"Pequim",country:"China",name:"Capital Int'l"},
+{code:"PKX",city:"Pequim",country:"China",name:"Daxing Int'l"},
+{code:"PVG",city:"Xangai",country:"China",name:"Pudong Int'l"},
+{code:"SHA",city:"Xangai",country:"China",name:"Hongqiao Int'l"},
+{code:"CAN",city:"Guangzhou",country:"China",name:"Baiyun Int'l"},
+{code:"SZX",city:"Shenzhen",country:"China",name:"Bao'an Int'l"},
+{code:"CTU",city:"Chengdu",country:"China",name:"Tianfu Int'l"},
+{code:"KMG",city:"Kunming",country:"China",name:"Changshui Int'l"},
+{code:"WUH",city:"Wuhan",country:"China",name:"Tianhe Int'l"},
+{code:"XIY",city:"Xi'an",country:"China",name:"Xianyang Int'l"},
+{code:"HGH",city:"Hangzhou",country:"China",name:"Xiaoshan Int'l"},
+{code:"NKG",city:"Nanjing",country:"China",name:"Lukou Int'l"},
+{code:"XMN",city:"Xiamen",country:"China",name:"Gaoqi Int'l"},
+{code:"HKG",city:"Hong Kong",country:"China",name:"Hong Kong Int'l"},
+{code:"MFM",city:"Macau",country:"China",name:"Macau Int'l"},
+{code:"TSA",city:"Taipei",country:"Taiwan",name:"Songshan"},
+{code:"TPE",city:"Taipei",country:"Taiwan",name:"Taoyuan Int'l"},
+{code:"NRT",city:"Tóquio",country:"Japão",name:"Narita Int'l"},
+{code:"HND",city:"Tóquio",country:"Japão",name:"Haneda"},
+{code:"KIX",city:"Osaka",country:"Japão",name:"Kansai Int'l"},
+{code:"ITM",city:"Osaka",country:"Japão",name:"Itami"},
+{code:"NGO",city:"Nagoya",country:"Japão",name:"Chubu Centrair Int'l"},
+{code:"CTS",city:"Sapporo",country:"Japão",name:"New Chitose"},
+{code:"FUK",city:"Fukuoka",country:"Japão",name:"Fukuoka Airport"},
+{code:"OKA",city:"Okinawa",country:"Japão",name:"Naha Airport"},
+{code:"ICN",city:"Seul",country:"Coreia do Sul",name:"Incheon Int'l"},
+{code:"GMP",city:"Seul",country:"Coreia do Sul",name:"Gimpo Int'l"},
+{code:"PUS",city:"Busan",country:"Coreia do Sul",name:"Gimhae Int'l"},
+{code:"SIN",city:"Singapura",country:"Singapura",name:"Changi Airport"},
+{code:"KUL",city:"Kuala Lumpur",country:"Malásia",name:"KL Int'l"},
+{code:"BKI",city:"Kota Kinabalu",country:"Malásia",name:"Kota Kinabalu Int'l"},
+{code:"JHB",city:"Johor Bahru",country:"Malásia",name:"Senai Int'l"},
+{code:"BKK",city:"Bangkok",country:"Tailândia",name:"Suvarnabhumi"},
+{code:"DMK",city:"Bangkok",country:"Tailândia",name:"Don Mueang Int'l"},
+{code:"HKT",city:"Phuket",country:"Tailândia",name:"Phuket Int'l"},
+{code:"CNX",city:"Chiang Mai",country:"Tailândia",name:"Chiang Mai Int'l"},
+{code:"USM",city:"Koh Samui",country:"Tailândia",name:"Samui Airport"},
+{code:"SGN",city:"Ho Chi Minh",country:"Vietnã",name:"Tan Son Nhat Int'l"},
+{code:"HAN",city:"Hanói",country:"Vietnã",name:"Noi Bai Int'l"},
+{code:"DAD",city:"Da Nang",country:"Vietnã",name:"Da Nang Int'l"},
+{code:"REP",city:"Siem Reap",country:"Camboja",name:"Angkor Int'l"},
+{code:"PNH",city:"Phnom Penh",country:"Camboja",name:"Phnom Penh Int'l"},
+{code:"VTE",city:"Vientiane",country:"Laos",name:"Wattay Int'l"},
+{code:"RGN",city:"Rangum",country:"Myanmar",name:"Yangon Int'l"},
+{code:"MDL",city:"Mandalay",country:"Myanmar",name:"Mandalay Int'l"},
+{code:"CGP",city:"Chittagong",country:"Bangladesh",name:"Shah Amanat Int'l"},
+{code:"DAC",city:"Daca",country:"Bangladesh",name:"Hazrat Shahjalal Int'l"},
+{code:"DEL",city:"Nova Délhi",country:"Índia",name:"Indira Gandhi Int'l"},
+{code:"BOM",city:"Mumbai",country:"Índia",name:"Chhatrapati Shivaji Maharaj Int'l"},
+{code:"BLR",city:"Bangalore",country:"Índia",name:"Kempegowda Int'l"},
+{code:"MAA",city:"Chennai",country:"Índia",name:"Chennai Int'l"},
+{code:"CCU",city:"Calcutá",country:"Índia",name:"Netaji Subhas Chandra Bose Int'l"},
+{code:"HYD",city:"Hyderabad",country:"Índia",name:"Rajiv Gandhi Int'l"},
+{code:"AMD",city:"Ahmedabad",country:"Índia",name:"Sardar Vallabhbhai Patel Int'l"},
+{code:"COK",city:"Cochin",country:"Índia",name:"Cochin Int'l"},
+{code:"PNQ",city:"Pune",country:"Índia",name:"Lohegaon Airport"},
+{code:"GOI",city:"Goa",country:"Índia",name:"Dabolim Airport"},
+{code:"TRV",city:"Thiruvananthapuram",country:"Índia",name:"Trivandrum Int'l"},
+{code:"NAG",city:"Nagpur",country:"Índia",name:"Dr. Babasaheb Ambedkar Int'l"},
+{code:"JAI",city:"Jaipur",country:"Índia",name:"Jaipur Int'l"},
+{code:"LKO",city:"Lucknow",country:"Índia",name:"Chaudhary Charan Singh Int'l"},
+{code:"CMB",city:"Colombo",country:"Sri Lanka",name:"Bandaranaike Int'l"},
+{code:"MLE",city:"Malé",country:"Maldivas",name:"Velana Int'l"},
+{code:"KTM",city:"Catmandu",country:"Nepal",name:"Tribhuvan Int'l"},
+{code:"ISB",city:"Islamabad",country:"Paquistão",name:"Islamabad Int'l"},
+{code:"KHI",city:"Carachi",country:"Paquistão",name:"Jinnah Int'l"},
+{code:"LHE",city:"Lahore",country:"Paquistão",name:"Allama Iqbal Int'l"},
+{code:"TAS",city:"Tashkent",country:"Uzbequistão",name:"Islam Karimov Int'l"},
+{code:"ALA",city:"Almaty",country:"Cazaquistão",name:"Almaty Int'l"},
+{code:"NQZ",city:"Astana",country:"Cazaquistão",name:"Nursultan Nazarbayev Int'l"},
+{code:"OSS",city:"Osh",country:"Quirguistão",name:"Osh Airport"},
+{code:"FRU",city:"Bishkek",country:"Quirguistão",name:"Manas Int'l"},
+{code:"ASB",city:"Ashgabat",country:"Turcomenistão",name:"Ashgabat Int'l"},
+{code:"DYU",city:"Dushanbe",country:"Tajiquistão",name:"Dushanbe Int'l"},
+{code:"ULN",city:"Ulaanbaatar",country:"Mongólia",name:"Chinggis Khaan Int'l"},
+{code:"TNE",city:"Ninhetta",country:"Coreia do Norte",name:"Sunan Int'l"},
+{code:"MNL",city:"Manila",country:"Filipinas",name:"Ninoy Aquino Int'l"},
+{code:"CEB",city:"Cebu",country:"Filipinas",name:"Mactan-Cebu Int'l"},
+{code:"CGK",city:"Jacarta",country:"Indonésia",name:"Soekarno-Hatta Int'l"},
+{code:"DPS",city:"Bali",country:"Indonésia",name:"Ngurah Rai Int'l"},
+{code:"SUB",city:"Surabaya",country:"Indonésia",name:"Juanda Int'l"},
+{code:"UPG",city:"Ujung Pandang",country:"Indonésia",name:"Sultan Hasanuddin Int'l"},
+{code:"DIL",city:"Díli",country:"Timor-Leste",name:"Presidente Nicolau Lobato Int'l"},
+{code:"BWN",city:"Bandar Seri Begawan",country:"Brunei",name:"Brunei Int'l"},
+{code:"VTE",city:"Vientiane",country:"Laos",name:"Wattay Int'l"},
+// ── OCEANIA ──
+{code:"SYD",city:"Sydney",country:"Austrália",name:"Kingsford Smith"},
+{code:"MEL",city:"Melbourne",country:"Austrália",name:"Tullamarine"},
+{code:"BNE",city:"Brisbane",country:"Austrália",name:"Brisbane Airport"},
+{code:"PER",city:"Perth",country:"Austrália",name:"Perth Airport"},
+{code:"ADL",city:"Adelaide",country:"Austrália",name:"Adelaide Airport"},
+{code:"OOL",city:"Gold Coast",country:"Austrália",name:"Gold Coast Airport"},
+{code:"CNS",city:"Cairns",country:"Austrália",name:"Cairns Airport"},
+{code:"CBR",city:"Canberra",country:"Austrália",name:"Canberra Airport"},
+{code:"AKL",city:"Auckland",country:"Nova Zelândia",name:"Auckland Airport"},
+{code:"WLG",city:"Wellington",country:"Nova Zelândia",name:"Wellington Airport"},
+{code:"CHC",city:"Christchurch",country:"Nova Zelândia",name:"Christchurch Airport"},
+{code:"NAN",city:"Nadi",country:"Fiji",name:"Nadi Int'l"},
+{code:"SUV",city:"Suva",country:"Fiji",name:"Nausori Airport"},
+{code:"PPT",city:"Papeete",country:"Polinésia Francesa",name:"Faa'a Int'l"},
+{code:"APW",city:"Apia",country:"Samoa",name:"Faleolo Int'l"},
+{code:"TBU",city:"Nukuʻalofa",country:"Tonga",name:"Fua'amotu Int'l"},
+{code:"HIR",city:"Honiara",country:"Ilhas Salomão",name:"Honiara Int'l"},
+{code:"VLI",city:"Port Vila",country:"Vanuatu",name:"Bauerfield Int'l"},
+{code:"POM",city:"Port Moresby",country:"Papua Nova Guiné",name:"Jacksons Int'l"},
+{code:"GUM",city:"Hagåtña",country:"Guam",name:"Antonio B. Won Pat Int'l"},
+{code:"HNL",city:"Honolulu",country:"EUA",name:"Daniel K. Inouye Int'l"},
+{code:"KON",city:"Kontum",country:"Vietnã",name:"Kontum Airport"},
+{code:"MHQ",city:"Mariehamn",country:"Finlândia",name:"Mariehamn Airport"},
+{code:"THF",city:"Berlim",country:"Alemanha",name:"Berlin-Tempelhof"},
+{code:"NAA",city:"Narrabri",country:"Austrália",name:"Narrabri Airport"},
+{code:"ASP",city:"Alice Springs",country:"Austrália",name:"Alice Springs Airport"},
+{code:"DRW",city:"Darwin",country:"Austrália",name:"Darwin Int'l"},
+{code:"TSV",city:"Townsville",country:"Austrália",name:"Townsville Airport"},
+];
+
+// ── Smart airport search function ──────────────────────────────────────────
+function searchAirports(q) {
+  if (!q || q.length < 1) return [];
+  const query = q.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  
+  // Score each airport
+  const scored = AIRPORTS.map(a => {
+    const city = a.city.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const country = a.country.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const code = a.code.toLowerCase();
+    const name = a.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    let score = 0;
+    if (code === query) score = 100;
+    else if (code.startsWith(query)) score = 80;
+    else if (city === query) score = 90;
+    else if (city.startsWith(query)) score = 70;
+    else if (city.includes(query)) score = 50;
+    else if (country.startsWith(query)) score = 40;
+    else if (country.includes(query)) score = 30;
+    else if (name.includes(query)) score = 20;
+    return { a, score };
+  }).filter(x => x.score > 0)
+    .sort((x, y) => y.score - x.score)
+    .slice(0, 8)
+    .map(x => x.a);
+  
+  return scored;
+}
+const AIRLINES = [
+  {name:"LATAM",code:"LA",color:"#E31837"},
+  {name:"Gol",code:"G3",color:"#F68B1F"},
+  {name:"Azul",code:"AD",color:"#0046AD"},
+  {name:"TAP Air Portugal",code:"TP",color:"#00A651"},
+  {name:"Iberia",code:"IB",color:"#C60B1E"},
+  {name:"American Airlines",code:"AA",color:"#0078D2"},
+  {name:"Air France",code:"AF",color:"#002157"},
+];
+const PROMO = [
+  {city:"Lisboa",country:"Portugal",price:1890,original:3200,savings:41,
+   img:"https://images.unsplash.com/photo-1555881400-74d7acaacd8b?w=400&q=80"},
+  {city:"Buenos Aires",country:"Argentina",price:780,original:1400,savings:44,
+   img:"https://images.unsplash.com/photo-1589909202802-8f4aadce1849?w=400&q=80"},
+  {city:"Miami",country:"EUA",price:1250,original:2100,savings:40,
+   img:"https://images.unsplash.com/photo-1533106497176-45ae19e68ba2?w=400&q=80"},
+  {city:"Paris",country:"França",price:2100,original:3800,savings:44,
+   img:"https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=400&q=80"},
+  {city:"Santiago",country:"Chile",price:620,original:980,savings:36,
+   img:"https://images.unsplash.com/photo-1508193638397-1c4234db14d8?w=400&q=80"},
+  {city:"Tóquio",country:"Japão",price:3200,original:5500,savings:41,
+   img:"https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=400&q=80"},
+];
+const MAP_DESTS = [
+  {city:"São Paulo",price:280,x:30,y:68},
+  {city:"Salvador",price:390,x:42,y:55},
+  {city:"Recife",price:450,x:50,y:48},
+  {city:"Buenos Aires",price:780,x:22,y:82},
+  {city:"Santiago",price:620,x:18,y:78},
+  {city:"Lisboa",price:1890,x:62,y:28},
+  {city:"Miami",price:1250,x:20,y:35},
+  {city:"Paris",price:2100,x:65,y:22},
+];
+const CAL_PRICES = {1:890,2:650,3:720,4:980,5:1100,6:590,7:630,8:870,9:750,10:680,11:920,12:1050,13:610,14:720,15:840,16:760,17:690,18:950,19:1200,20:580,21:640,22:880,23:800,24:1300,25:1450,26:1100,27:670,28:710,29:830,30:760};
+const MON_ROUTES = [
+  {origin:"GRU",dest:"LIS",min:1890,cur:2100,avg:2350,var:-10.6,trend:"down"},
+  {origin:"GIG",dest:"EZE",min:780,cur:850,avg:950,var:-10.5,trend:"down"},
+  {origin:"GRU",dest:"MIA",min:1250,cur:1400,avg:1600,var:-12.5,trend:"stable"},
+  {origin:"GRU",dest:"CDG",min:2100,cur:2800,avg:3100,var:33.3,trend:"up"},
+];
+const INIT_ALERTS = [
+  {id:1,route:"GRU → LIS",type:"email",threshold:1800,active:true,triggered:false},
+  {id:2,route:"GIG → EZE",type:"whatsapp",threshold:700,active:true,triggered:true},
+  {id:3,route:"GRU → MIA",type:"telegram",threshold:1100,active:false,triggered:false},
+];
+const AI_TIPS = [
+  "Qual o melhor mês para ir a Lisboa?",
+  "Quando passagens para Miami ficam baratas?",
+  "Vale comprar agora ou esperar?",
+  "Destino mais barato saindo do Rio?",
+];
+
+function genFlights(origin,dest){
+  const base=400+Math.floor(Math.random()*1800);
+  return Array.from({length:6+Math.floor(Math.random()*4)},(_,i)=>{
+    const al=AIRLINES[Math.floor(Math.random()*AIRLINES.length)];
+    const dH=6+Math.floor(Math.random()*14),dM=[0,15,30,45][Math.floor(Math.random()*4)];
+    const durH=1+Math.floor(Math.random()*11),durM=[0,15,30,45][Math.floor(Math.random()*4)];
+    const stops=Math.random()>.55?0:Math.random()>.5?1:2;
+    const price=Math.round(base*(0.7+Math.random()*.8)+stops*100*(Math.random()-.5));
+    return {id:`F${i}${Date.now()}`,airline:al,
+      dep:{time:`${String(dH).padStart(2,"0")}:${String(dM).padStart(2,"0")}`,code:origin.code},
+      arr:{time:`${String((dH+durH)%24).padStart(2,"0")}:${String((dM+durM)%60).padStart(2,"0")}`,code:dest.code},
+      duration:`${durH}h${durM>0?" "+durM+"m":""}`,durMins:durH*60+durM,
+      stops,baggage:Math.random()>.4?"1 bagagem":"Só bagagem de mão",
+      price,seats:Math.floor(Math.random()*8)+1};
+  }).sort((a,b)=>a.price-b.price);
+}
+
+// ── Sparkline ──────────────────────────────────────────────────────────────
+function Sparkline({data,color="#22d3ee",height=40}){
+  const max=Math.max(...data),min=Math.min(...data),range=max-min||1;
+  const w=120,pts=data.map((v,i)=>`${(i/(data.length-1))*w},${height-((v-min)/range)*(height-4)-2}`).join(" ");
+  return h('svg',{width:w,height,style:{opacity:.8}},h('polyline',{points:pts,fill:"none",stroke:color,strokeWidth:"2",strokeLinecap:"round",strokeLinejoin:"round"}));
+}
+
+// ── Airport Autocomplete (Smart Global Search) ────────────────────────────
+function AirportInput({value,onChange,placeholder,dark}){
+  const [q,setQ]=useState(value?`${value.city} (${value.code})`:"");
+  const [open,setOpen]=useState(false);
+  const results=q.length>0?searchAirports(q):[];
+  const flagMap={"Brasil":"🇧🇷","EUA":"🇺🇸","Portugal":"🇵🇹","Espanha":"🇪🇸","França":"🇫🇷","Alemanha":"🇩🇪","Reino Unido":"🇬🇧","Itália":"🇮🇹","Japão":"🇯🇵","China":"🇨🇳","Índia":"🇮🇳","Argentina":"🇦🇷","Chile":"🇨🇱","Colômbia":"🇨🇴","México":"🇲🇽","Canadá":"🇨🇦","Austrália":"🇦🇺","Dubai":"🇦🇪","Emirados Árabes":"🇦🇪","Tailândia":"🇹🇭","Singapura":"🇸🇬","Coreia do Sul":"🇰🇷","Hong Kong":"🇭🇰","Taiwan":"🇹🇼","África do Sul":"🇿🇦"};
+  return h('div',{style:{position:"relative"}},
+    h('input',{
+      value:q,
+      onChange:e=>{setQ(e.target.value);setOpen(true);if(!e.target.value)onChange(null)},
+      onFocus:()=>setOpen(true),
+      onBlur:()=>setTimeout(()=>setOpen(false),180),
+      placeholder,
+      autoComplete:"off",
+      className:`w-full text-sm font-medium outline-none bg-transparent ${dark?"text-white placeholder-gray-500":"text-gray-900 placeholder-gray-400"}`
+    }),
+    open&&results.length>0&&h('div',{
+      className:`absolute top-full left-0 mt-2 w-80 rounded-xl shadow-2xl border z-50 overflow-hidden ${dark?"bg-gray-900 border-gray-700":"bg-white border-gray-200"}`,
+      style:{zIndex:9999,maxHeight:320,overflowY:"auto"}
+    },
+      h('div',{className:`px-3 py-1.5 border-b flex items-center gap-1.5 ${dark?"border-gray-800":"border-gray-100"}`},
+        h('span',{className:"text-xs",style:{color:"#22d3ee"}},"✈"),
+        h('span',{className:`text-xs ${dark?"text-gray-400":"text-gray-400"}`},`${results.length} aeroporto${results.length>1?"s":""} encontrado${results.length>1?"s":""}`)
+      ),
+      results.map(a=>h('button',{
+        key:a.code+a.city,
+        onMouseDown:()=>{onChange(a);setQ(`${a.city} (${a.code})`);setOpen(false)},
+        className:`w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors ${dark?"hover:bg-gray-800/80":"hover:bg-gray-50"}`
+      },
+        h('span',{className:`text-base w-6 text-center flex-shrink-0`},flagMap[a.country]||"🌍"),
+        h('div',{className:`text-xs font-bold px-1.5 py-0.5 rounded flex-shrink-0 ${dark?"bg-gray-700 text-cyan-400":"bg-blue-50 text-blue-600"}`},a.code),
+        h('div',{className:"min-w-0"},
+          h('p',{className:`text-sm font-medium truncate ${dark?"text-white":"text-gray-900"}`},a.city),
+          h('p',{className:`text-xs truncate ${dark?"text-gray-400":"text-gray-500"}`},`${a.name} · ${a.country}`)
+        )
+      ))
+    )
+  );
+}
+
+// ── AI Assistant ───────────────────────────────────────────────────────────
+function AIPanel({dark,onClose}){
+  const [msgs,setMsgs]=useState([{role:"assistant",text:"Olá! Sou a Aria 🌟 Sua assistente de viagens com IA. Pergunte sobre preços, melhores épocas para viajar ou quando comprar passagens!"}]);
+  const [inp,setInp]=useState("");
+  const [loading,setLoading]=useState(false);
+  const endRef=useRef(null);
+  useEffect(()=>endRef.current?.scrollIntoView({behavior:"smooth"}),[msgs]);
+
+  async function send(){
+    if(!inp.trim()||loading)return;
+    const txt=inp.trim();
+    setInp("");
+    setMsgs(m=>[...m,{role:"user",text:txt}]);
+    setLoading(true);
+    try{
+      // Build conversation history (skip the initial assistant greeting at index 0)
+      const allMsgs=[...msgs,{role:"user",text:txt}];
+      const apiMsgs=allMsgs
+        .filter((_,i)=>i>0)
+        .map(m=>({role:m.role,content:m.text}));
+      // Ensure valid alternating roles (required by Anthropic API)
+      const cleaned=[];
+      for(const m of apiMsgs){
+        if(cleaned.length===0||cleaned[cleaned.length-1].role!==m.role){
+          cleaned.push(m);
+        }
+      }
+      if(cleaned.length===0||cleaned[cleaned.length-1].role!=="user"){
+        cleaned.push({role:"user",content:txt});
+      }
+
+      const res=await fetch("/api/chat",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          system:"Você é Aria, assistente especialista em passagens aéreas e viagens do AirDeals, plataforma brasileira de monitoramento de voos. Responda SEMPRE em português brasileiro. Seja amigável, direto e útil. Dê dicas práticas: meses mais baratos, destinos populares, quando comprar, alertas de preço. Use dados realistas de preços em reais. Máximo 3 parágrafos curtos. Use emojis com moderação.",
+          messages:cleaned
+        })
+      });
+      if(!res.ok){
+        const err=await res.json().catch(()=>({}));
+        const msg=err.error||`Erro ${res.status}`;
+        if(res.status===500&&msg.includes("API key")){
+          setMsgs(m=>[...m,{role:"assistant",text:"⚠️ A Aria precisa de uma chave de API configurada. No Vercel, vá em Settings → Environment Variables e adicione ANTHROPIC_API_KEY com sua chave da Anthropic."}]);
+        } else {
+          setMsgs(m=>[...m,{role:"assistant",text:`Erro ao contatar a IA: ${msg}. Tente novamente.`}]);
+        }
+        setLoading(false);
+        return;
+      }
+      const data=await res.json();
+      const reply=data.content?.[0]?.text;
+      if(reply){
+        setMsgs(m=>[...m,{role:"assistant",text:reply}]);
+      } else {
+        setMsgs(m=>[...m,{role:"assistant",text:"Recebi uma resposta vazia. Tente reformular sua pergunta."}]);
+      }
+    }catch(e){
+      console.error("AI error:",e);
+      setMsgs(m=>[...m,{role:"assistant",text:"❌ Não consegui conectar com a IA. Verifique sua conexão e tente novamente."}]);
+    }
+    setLoading(false);
+  }
+
+  return h('div',{
+    className:`fixed bottom-4 right-4 z-50 w-80 rounded-2xl border flex flex-col overflow-hidden shadow-2xl anim-fade ${dark?"bg-gray-900 border-gray-700":"bg-white border-gray-200"}`,
+    style:{height:380}
+  },
+    h('div',{className:`px-4 py-2.5 border-b flex items-center gap-2 ${dark?"border-gray-700":"border-gray-100"}`},
+      h('div',{className:"w-7 h-7 rounded-full flex items-center justify-center",style:{background:"linear-gradient(135deg,#7c3aed,#06b6d4)"}},h(Bot,{size:14,className:"text-white"})),
+      h('div',{},
+        h('p',{className:`text-sm font-semibold ${dark?"text-white":"text-gray-900"}`},"Aria IA"),
+        h('p',{className:"text-xs text-emerald-400"},"● Online")
+      ),
+      h('button',{onClick:onClose,className:`ml-auto text-xs px-2 py-1 rounded-lg ${dark?"text-gray-400 hover:text-white hover:bg-gray-800":"text-gray-400 hover:text-gray-700 hover:bg-gray-100"}`},"✕")
+    ),
+    h('div',{className:"flex-1 overflow-y-auto p-3 space-y-2"},
+      msgs.map((m,i)=>h('div',{key:i,className:`flex ${m.role==="user"?"justify-end":"justify-start"}`},
+        h('div',{className:`max-w-4/5 rounded-2xl px-3 py-2 text-xs leading-relaxed ${m.role==="user"?"text-white rounded-br-sm":"rounded-bl-sm "+( dark?"bg-gray-800 text-gray-100":"bg-gray-100 text-gray-800")}`,
+          style:m.role==="user"?{background:"linear-gradient(135deg,#7c3aed,#06b6d4)",maxWidth:"85%"}:{maxWidth:"85%"}
+        },m.text)
+      )),
+      loading&&h('div',{className:"flex justify-start"},
+        h('div',{className:`rounded-2xl rounded-bl-sm px-3 py-2 ${dark?"bg-gray-800":"bg-gray-100"}`},
+          h('div',{className:"flex gap-1 items-center"},
+            ...[0,150,300].map(d=>h('span',{key:d,className:"w-1.5 h-1.5 rounded-full bg-gray-400 anim-bounce",style:{animationDelay:d+"ms"}}))
+          )
+        )
+      ),
+      h('div',{ref:endRef})
+    ),
+    h('div',{className:`p-2 border-t ${dark?"border-gray-700":"border-gray-100"}`},
+      h('div',{className:"flex gap-1.5 mb-2 flex-wrap"},
+        AI_TIPS.slice(0,2).map((t,i)=>h('button',{key:i,onClick:()=>setInp(t),
+          className:`text-xs px-2 py-0.5 rounded-full border transition-colors ${dark?"border-gray-700 text-gray-400 hover:border-violet-500 hover:text-violet-400":"border-gray-200 text-gray-500 hover:border-violet-400 hover:text-violet-600"}`
+        },t.substring(0,28)+"…"))
+      ),
+      h('div',{className:"flex gap-2"},
+        h('input',{value:inp,onChange:e=>setInp(e.target.value),onKeyDown:e=>e.key==="Enter"&&send(),
+          placeholder:"Pergunte sobre voos...",
+          className:`flex-1 text-xs px-3 py-1.5 rounded-xl border outline-none ${dark?"bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:border-violet-500":"bg-gray-50 border-gray-200 text-gray-900 focus:border-violet-400"}`
+        }),
+        h('button',{onClick:send,disabled:loading||!inp.trim(),
+          className:"w-7 h-7 rounded-xl flex items-center justify-center text-white disabled:opacity-50",
+          style:{background:"linear-gradient(135deg,#7c3aed,#06b6d4)"}
+        },h(Send,{size:12}))
+      )
+    )
+  );
+}
+
+// ── Flight Card ────────────────────────────────────────────────────────────
+function FlightCard({f,dark,best,fav,onFav,onMon}){
+  return h('div',{className:`rounded-2xl border p-4 transition-all hover:shadow-lg ${best?(dark?"border-cyan-500/40 bg-cyan-500/5":"border-cyan-400/40 bg-cyan-50"):(dark?"border-gray-700/50 bg-gray-900/40":"border-gray-200 bg-white")}`},
+    best&&h('div',{className:"flex items-center gap-1 mb-2"},
+      h('span',{className:"text-xs font-semibold text-cyan-400 flex items-center gap-1"},h(Zap,{size:11,className:"text-cyan-400"}),"Melhor opção")
+    ),
+    h('div',{className:"flex items-center justify-between"},
+      h('div',{className:"flex items-center gap-2"},
+        h('div',{className:"w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold text-white",style:{background:f.airline.color}},f.airline.code),
+        h('span',{className:`text-sm font-medium ${dark?"text-gray-300":"text-gray-700"}`},f.airline.name)
+      ),
+      h('div',{className:"flex items-center gap-2"},
+        h('button',{onClick:()=>onFav(f.id),className:`p-1 rounded-lg ${dark?"hover:bg-gray-700":"hover:bg-gray-100"}`},
+          h(Heart,{size:14,filled:fav,className:fav?"text-red-400":dark?"text-gray-500":"text-gray-400"})
+        ),
+        h('span',{className:`text-xl font-bold ${dark?"text-white":"text-gray-900"}`},`R$${f.price.toLocaleString()}`)
+      )
+    ),
+    h('div',{className:"flex items-center justify-between mt-3"},
+      h('div',{className:"text-center"},
+        h('p',{className:`text-2xl font-bold ${dark?"text-white":"text-gray-900"}`},f.dep.time),
+        h('p',{className:`text-xs ${dark?"text-gray-400":"text-gray-500"}`},f.dep.code)
+      ),
+      h('div',{className:"flex-1 mx-3 flex flex-col items-center"},
+        h('p',{className:`text-xs mb-1 ${dark?"text-gray-400":"text-gray-500"}`},f.duration),
+        h('div',{className:"w-full flex items-center gap-1"},
+          h('div',{className:`flex-1 h-px ${dark?"bg-gray-600":"bg-gray-300"}`}),
+          h(Plane,{size:13,className:dark?"text-gray-400":"text-gray-400"}),
+          h('div',{className:`flex-1 h-px ${dark?"bg-gray-600":"bg-gray-300"}`})
+        ),
+        h('p',{className:`text-xs mt-1 ${f.stops===0?"text-emerald-400":f.stops===1?"text-yellow-400":"text-red-400"}`},
+          f.stops===0?"Direto":`${f.stops} escala${f.stops>1?"s":""}`)
+      ),
+      h('div',{className:"text-center"},
+        h('p',{className:`text-2xl font-bold ${dark?"text-white":"text-gray-900"}`},f.arr.time),
+        h('p',{className:`text-xs ${dark?"text-gray-400":"text-gray-500"}`},f.arr.code)
+      )
+    ),
+    h('div',{className:`flex items-center justify-between mt-3 pt-3 border-t ${dark?"border-gray-700/50":"border-gray-100"}`},
+      h('div',{className:"flex items-center gap-2"},
+        h('span',{className:`text-xs ${dark?"text-gray-400":"text-gray-500"}`},"🧳 "+f.baggage),
+        f.seats<=3&&h('span',{className:"text-xs text-red-400 font-medium"},`⚡ ${f.seats} assentos`)
+      ),
+      h('button',{onClick:onMon,className:`text-xs px-3 py-1.5 rounded-lg font-medium ${dark?"bg-gray-800 text-cyan-400 hover:bg-gray-700":"bg-gray-100 text-blue-600 hover:bg-gray-200"}`},"Monitorar")
+    )
+  );
+}
+
+// ── MAIN APP ───────────────────────────────────────────────────────────────
+function App(){
+  const [dark,setDark]=useState(true);
+  const [page,setPage]=useState("home");
+  const [origin,setOrigin]=useState(null);
+  const [dest,setDest]=useState(null);
+  const [dateFrom,setDateFrom]=useState("2026-07-10");
+  const [dateTo,setDateTo]=useState("2026-07-17");
+  const [pax,setPax]=useState(1);
+  const [flights,setFlights]=useState([]);
+  const [loading,setLoading]=useState(false);
+  const [sortBy,setSortBy]=useState("price");
+  const [filterStops,setFilterStops]=useState("all");
+  const [favs,setFavs]=useState(new Set());
+  const [alerts,setAlerts]=useState(INIT_ALERTS);
+  const [aiOpen,setAiOpen]=useState(false);
+  const [newRoute,setNewRoute]=useState("");
+  const [newPrice,setNewPrice]=useState("");
+  const [mobileMenu,setMobileMenu]=useState(false);
+
+  function doSearch(){
+    if(!origin||!dest)return;
+    setLoading(true);setPage("results");
+    setTimeout(()=>{setFlights(genFlights(origin,dest));setLoading(false);},1100);
+  }
+  function toggleFav(id){setFavs(f=>{const n=new Set(f);n.has(id)?n.delete(id):n.add(id);return n});}
+  function toggleAlert(id){setAlerts(a=>a.map(x=>x.id===id?{...x,active:!x.active}:x));}
+  function addAlert(){
+    if(!newRoute||!newPrice)return;
+    setAlerts(a=>[...a,{id:Date.now(),route:newRoute,type:"email",threshold:Number(newPrice),active:true,triggered:false}]);
+    setNewRoute("");setNewPrice("");
+  }
+
+  const filteredFlights=flights
+    .filter(f=>filterStops==="all"||(filterStops==="direct"&&f.stops===0)||(filterStops==="1"&&f.stops===1))
+    .sort((a,b)=>sortBy==="price"?a.price-b.price:a.durMins-b.durMins);
+
+  const minCal=Math.min(...Object.values(CAL_PRICES));
+  const maxCal=Math.max(...Object.values(CAL_PRICES));
+
+  const bg=dark?"#030712":"#f9fafb";
+  const card=dark?"bg-gray-900/40 border-gray-800/50":"bg-white border-gray-200";
+  const txt=dark?"text-white":"text-gray-900";
+  const sub=dark?"text-gray-400":"text-gray-500";
+
+  // Search Box
+  const SearchBox=()=>h('div',{className:`rounded-2xl border shadow-2xl ${dark?"bg-gray-900/80 border-gray-700/50":"bg-white border-gray-200"}`},
+    h('div',{className:`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 divide-y sm:divide-y-0 sm:divide-x ${dark?"divide-gray-700/50":"divide-gray-200"}`},
+      ...[
+        {label:"De",icon:h(Pin,{size:13,className:dark?"text-cyan-400":"text-blue-500"}),
+          content:h(AirportInput,{value:origin,onChange:setOrigin,placeholder:"Origem",dark})},
+        {label:"Para",icon:h(Pin,{size:13,className:dark?"text-cyan-400":"text-blue-500"}),
+          content:h(AirportInput,{value:dest,onChange:setDest,placeholder:"Destino",dark})},
+        {label:"Ida",icon:h(Cal,{size:13,className:dark?"text-cyan-400":"text-blue-500"}),
+          content:h('input',{type:"date",value:dateFrom,onChange:e=>setDateFrom(e.target.value),
+            className:`w-full text-sm font-medium outline-none bg-transparent ${dark?"text-white":"text-gray-900"}`,
+            style:{colorScheme:dark?"dark":"light"}})},
+        {label:"Volta",icon:h(Cal,{size:13,className:dark?"text-cyan-400":"text-blue-500"}),
+          content:h('input',{type:"date",value:dateTo,onChange:e=>setDateTo(e.target.value),
+            className:`w-full text-sm font-medium outline-none bg-transparent ${dark?"text-white":"text-gray-900"}`,
+            style:{colorScheme:dark?"dark":"light"}})},
+        {label:"Passageiros",icon:h(Users,{size:13,className:dark?"text-cyan-400":"text-blue-500"}),
+          content:h('div',{className:"flex items-center gap-2"},
+            h('button',{onClick:()=>setPax(p=>Math.max(1,p-1)),className:`w-5 h-5 rounded-full border text-xs flex items-center justify-center ${dark?"border-gray-600 text-gray-300":"border-gray-300 text-gray-600"}`},"-"),
+            h('span',{className:`text-sm font-medium ${txt}`},pax),
+            h('button',{onClick:()=>setPax(p=>Math.min(9,p+1)),className:`w-5 h-5 rounded-full border text-xs flex items-center justify-center ${dark?"border-gray-600 text-gray-300":"border-gray-300 text-gray-600"}`},"+")
+          )},
+      ].map((f,i)=>h('div',{key:i,className:"px-4 py-3"},
+        h('p',{className:`text-xs font-medium flex items-center gap-1 mb-1 ${sub}`},f.icon,f.label),
+        f.content
+      ))
+    ),
+    h('div',{className:`p-3 border-t flex justify-end ${dark?"border-gray-700/50":"border-gray-200"}`},
+      h('button',{onClick:doSearch,
+        className:"px-8 py-2.5 rounded-xl text-white text-sm font-semibold hover:opacity-90 transition-opacity flex items-center gap-2 shadow-lg",
+        style:{background:"linear-gradient(135deg,#7c3aed,#06b6d4)"}
+      },h(Search,{size:15,className:"text-white"}),"Buscar Passagens")
+    )
+  );
+
+  // Nav links
+  const navLinks=[
+    {id:"home",label:"Início"},{id:"results",label:"Buscar"},
+    {id:"monitor",label:"Monitoramento"},{id:"alerts",label:"Alertas"},
+    {id:"dashboard",label:"Dashboard"},{id:"calendar",label:"Calendário"},
+    {id:"map",label:"Mapa"},
+  ];
+
+  return h('div',{style:{minHeight:"100vh",background:bg,color:dark?"#fff":"#111",fontFamily:"'DM Sans',system-ui,sans-serif"}},
+
+    // NAV
+    h('nav',{className:`sticky top-0 z-40 border-b ${dark?"border-gray-800/60":"border-gray-200"}`,
+      style:{background:dark?"rgba(3,7,18,0.92)":"rgba(255,255,255,0.92)",backdropFilter:"blur(12px)"}},
+      h('div',{className:"max-w-7xl mx-auto px-4 h-14 flex items-center justify-between"},
+        h('button',{onClick:()=>setPage("home"),className:"flex items-center gap-2"},
+          h('div',{className:"w-7 h-7 rounded-lg flex items-center justify-center",style:{background:"linear-gradient(135deg,#7c3aed,#06b6d4)"}},
+            h(Plane,{size:13,className:"text-white"})),
+          h('span',{className:"font-bold text-base",style:{background:"linear-gradient(90deg,#a78bfa,#22d3ee)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}},"AirDeals")
+        ),
+        h('div',{className:"hidden md:flex items-center gap-1"},
+          navLinks.map(l=>h('button',{key:l.id,onClick:()=>setPage(l.id),
+            className:`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${page===l.id?(dark?"bg-violet-600/20 text-violet-400":"bg-violet-100 text-violet-600"):(dark?"text-gray-400 hover:text-white hover:bg-gray-800":"text-gray-600 hover:text-gray-900 hover:bg-gray-100")}`
+          },l.label))
+        ),
+        h('div',{className:"flex items-center gap-2"},
+          h('button',{onClick:()=>setDark(d=>!d),className:`p-2 rounded-lg transition-colors ${dark?"text-gray-400 hover:text-white hover:bg-gray-800":"text-gray-500 hover:text-gray-900 hover:bg-gray-100"}`},
+            dark?h(Sun,{size:16}):h(Moon,{size:16})),
+          h('button',{onClick:()=>setAiOpen(o=>!o),className:`p-2 rounded-lg transition-all ${aiOpen?"bg-violet-600/30 text-violet-400":"text-violet-400 hover:bg-violet-600/20"}`,title:"Abrir assistente IA"},
+            h(Sparkles,{size:16})),
+          h('button',{className:"px-3 py-1.5 rounded-lg text-white text-sm font-medium flex items-center gap-1.5 hover:opacity-90",style:{background:"linear-gradient(135deg,#7c3aed,#06b6d4)"}},
+            h(LogIn,{size:13}),"Entrar")
+        )
+      )
+    ),
+
+    // AI PANEL
+    aiOpen&&h(AIPanel,{dark,onClose:()=>setAiOpen(false)}),
+
+    // CONTENT
+    h('div',{className:"max-w-7xl mx-auto px-4 py-8"},
+
+      // ── HOME ──────────────────────────────────────────────────────────
+      page==="home"&&h('div',{},
+        // Hero
+        h('div',{className:"relative overflow-hidden rounded-3xl mb-8 py-16 px-6 text-center",
+          style:{background:dark?"linear-gradient(135deg,#1a0533 0%,#0a1628 40%,#001a2e 100%)":"linear-gradient(135deg,#f5f0ff 0%,#e0f2fe 100%)"}},
+          h('div',{className:"relative z-10"},
+            h('div',{className:"inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium mb-4 border",
+              style:{borderColor:"rgba(139,92,246,0.3)",background:"rgba(139,92,246,0.1)",color:"#a78bfa"}},
+              h(Sparkles,{size:11}),"Powered by IA · Monitoramento em tempo real"),
+            h('h1',{className:`text-4xl md:text-5xl font-bold mb-3 leading-tight ${txt}`},
+              "Encontre passagens aéreas",h('br'),
+              h('span',{style:{background:"linear-gradient(90deg,#a78bfa,#22d3ee)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}},"pelo menor preço")
+            ),
+            h('p',{className:`text-lg mb-8 ${sub}`},"Monitore voos, receba alertas e economize em suas viagens."),
+            h(SearchBox)
+          )
+        ),
+        // Stats
+        h('div',{className:"grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"},
+          ...[
+            {v:"12.847",l:"Rotas monitoradas",icon:h(Globe,{size:17}),c:"violet"},
+            {v:"89.2k",l:"Alertas enviados",icon:h(Bell,{size:17}),c:"cyan"},
+            {v:"R$420",l:"Economia média",icon:h(TrendDown,{size:17}),c:"emerald"},
+            {v:"45.3k",l:"Usuários ativos",icon:h(Users,{size:17}),c:"blue"},
+          ].map((s,i)=>h('div',{key:i,className:`rounded-2xl p-4 border ${card}`},
+            h('div',{className:`w-8 h-8 rounded-xl flex items-center justify-center mb-2 ${s.c==="violet"?"bg-violet-500/20 text-violet-400":s.c==="cyan"?"bg-cyan-500/20 text-cyan-400":s.c==="emerald"?"bg-emerald-500/20 text-emerald-400":"bg-blue-500/20 text-blue-400"}`},s.icon),
+            h('p',{className:`text-2xl font-bold ${txt}`},s.v),
+            h('p',{className:`text-xs ${sub}`},s.l)
+          ))
+        ),
+        // Promos
+        h('h2',{className:`text-xl font-bold mb-4 ${txt}`},"🔥 Destinos em promoção"),
+        h('div',{className:"grid grid-cols-2 md:grid-cols-3 gap-4 mb-8"},
+          PROMO.map((d,i)=>h('div',{key:i,className:"rounded-2xl overflow-hidden cursor-pointer group",onClick:()=>setPage("results")},
+            h('div',{className:"relative overflow-hidden",style:{height:144}},
+              h('img',{src:d.img,alt:d.city,className:"w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"}),
+              h('div',{className:"absolute inset-0",style:{background:"linear-gradient(to top,rgba(0,0,0,.7),transparent)"}}),
+              h('div',{className:"absolute top-2 right-2 text-white text-xs font-bold px-2 py-0.5 rounded-full",style:{background:"#10b981"}},`-${d.savings}%`),
+              h('div',{className:"absolute bottom-3 left-3"},
+                h('p',{className:"text-white font-bold text-sm"},d.city),
+                h('p',{className:"text-gray-300 text-xs"},d.country)
+              )
+            ),
+            h('div',{className:`px-3 py-2 border border-t-0 rounded-b-2xl ${card}`},
+              h('div',{className:"flex items-center justify-between"},
+                h('div',{},
+                  h('p',{className:`text-xs ${sub}`},"a partir de"),
+                  h('p',{className:`text-lg font-bold ${txt}`},`R$${d.price.toLocaleString()}`)
+                ),
+                h('div',{className:"text-right"},
+                  h('p',{className:`text-xs line-through ${dark?"text-gray-500":"text-gray-400"}`},`R$${d.original.toLocaleString()}`),
+                  h('p',{className:"text-xs text-emerald-400 font-medium"},`Economize R$${(d.original-d.price).toLocaleString()}`)
+                )
+              )
+            )
+          ))
+        ),
+        // AI CTA
+        h('div',{className:`rounded-2xl p-6 border mb-8 flex items-center justify-between flex-wrap gap-4 ${dark?"bg-gradient-to-r from-violet-900/30 to-cyan-900/20 border-violet-700/30":"bg-gradient-to-r from-violet-50 to-cyan-50 border-violet-200"}`},
+          h('div',{},
+            h('h3',{className:`text-lg font-bold mb-1 ${txt}`},"Aria — Assistente IA de Viagens"),
+            h('p',{className:`text-sm ${sub}`},"Pergunte sobre tendências de preço, melhores meses e quando comprar.")
+          ),
+          h('button',{onClick:()=>setAiOpen(true),
+            className:"px-5 py-2.5 rounded-xl text-white text-sm font-semibold hover:opacity-90 flex items-center gap-2",
+            style:{background:"linear-gradient(135deg,#7c3aed,#06b6d4)"}
+          },h(Bot,{size:15}),"Falar com Aria")
+        )
+      ),
+
+      // ── RESULTS ───────────────────────────────────────────────────────
+      page==="results"&&h('div',{},
+        h('div',{className:"mb-6"},h(SearchBox)),
+        loading?h('div',{className:"space-y-3"},
+          ...[0,1,2,3,4].map(i=>h('div',{key:i,className:`rounded-2xl h-32 anim-pulse ${dark?"bg-gray-800/50":"bg-gray-200"}`}))
+        ):flights.length>0?h('div',{className:"grid md:grid-cols-4 gap-6"},
+          // Sidebar
+          h('div',{className:`rounded-2xl p-4 border h-fit ${card}`},
+            h('p',{className:`text-sm font-bold mb-4 flex items-center gap-2 ${txt}`},h(Filter,{size:13}),"Filtros"),
+            h('div',{className:"mb-4"},
+              h('p',{className:`text-xs font-medium mb-2 ${sub}`},"Ordenar por"),
+              ...[{v:"price",l:"Menor preço"},{v:"duration",l:"Menor duração"}].map(s=>
+                h('label',{key:s.v,className:"flex items-center gap-2 cursor-pointer mb-1.5"},
+                  h('input',{type:"radio",checked:sortBy===s.v,onChange:()=>setSortBy(s.v),style:{accentColor:"#7c3aed"}}),
+                  h('span',{className:`text-sm ${dark?"text-gray-300":"text-gray-700"}`},s.l)
+                )
+              )
+            ),
+            h('div',{},
+              h('p',{className:`text-xs font-medium mb-2 ${sub}`},"Escalas"),
+              ...[{v:"all",l:"Todos"},{v:"direct",l:"Direto"},{v:"1",l:"1 escala"}].map(s=>
+                h('label',{key:s.v,className:"flex items-center gap-2 cursor-pointer mb-1.5"},
+                  h('input',{type:"radio",checked:filterStops===s.v,onChange:()=>setFilterStops(s.v),style:{accentColor:"#7c3aed"}}),
+                  h('span',{className:`text-sm ${dark?"text-gray-300":"text-gray-700"}`},s.l)
+                )
+              )
+            )
+          ),
+          // Results
+          h('div',{className:"md:col-span-3 space-y-3"},
+            h('div',{className:"flex justify-between items-center mb-1"},
+              h('p',{className:`text-sm ${sub}`},`${filteredFlights.length} voos encontrados`),
+              h('p',{className:`text-xs ${dark?"text-gray-500":"text-gray-400"}`},"Por pessoa · ida e volta")
+            ),
+            ...filteredFlights.map((f,i)=>h(FlightCard,{key:f.id,f,dark,best:i===0,fav:favs.has(f.id),onFav:toggleFav,onMon:()=>setPage("monitor")}))
+          )
+        ):h('div',{className:"text-center py-20"},
+          h(Plane,{size:48,className:`mx-auto mb-4 ${dark?"text-gray-600":"text-gray-300"}`}),
+          h('p',{className:`text-lg font-medium mb-2 ${sub}`},"Selecione origem e destino para buscar voos"),
+          h('p',{className:`text-sm ${dark?"text-gray-500":"text-gray-400"}`},"Use o formulário acima para iniciar sua busca")
+        )
+      ),
+
+      // ── MONITOR ───────────────────────────────────────────────────────
+      page==="monitor"&&h('div',{},
+        h('h1',{className:`text-2xl font-bold mb-6 ${txt}`},"📊 Monitoramento de Preços"),
+        h('div',{className:"grid md:grid-cols-2 gap-4"},
+          MON_ROUTES.map((r,i)=>{
+            const hist=[r.min*1.3,r.min*1.1,r.avg,r.cur,r.min*.95,r.cur,r.avg*.9,r.cur];
+            return h('div',{key:i,className:`rounded-2xl border p-5 ${card}`},
+              h('div',{className:"flex items-center justify-between mb-3"},
+                h('div',{className:"flex items-center gap-2"},
+                  h('span',{className:`font-bold text-lg ${txt}`},r.origin),
+                  h(Arr,{size:13,className:sub}),
+                  h('span',{className:`font-bold text-lg ${txt}`},r.dest)
+                ),
+                h('span',{className:`text-xs px-2 py-1 rounded-full font-medium ${r.trend==="down"?"bg-emerald-500/20 text-emerald-400":r.trend==="up"?"bg-red-500/20 text-red-400":"bg-gray-500/20 text-gray-400"}`},
+                  (r.trend==="down"?"↓":r.trend==="up"?"↑":"→")+" "+Math.abs(r.var).toFixed(1)+"%")
+              ),
+              h('div',{className:"grid grid-cols-3 gap-2 mb-3"},
+                [{label:"Mínimo",value:`R$${r.min.toLocaleString()}`,color:"text-emerald-400"},
+                 {label:"Atual",value:`R$${r.cur.toLocaleString()}`,color:dark?"text-white":"text-gray-900"},
+                 {label:"Média",value:`R$${r.avg.toLocaleString()}`,color:"text-blue-400"}
+                ].map((m,j)=>h('div',{key:j,className:`rounded-xl p-2 text-center ${dark?"bg-gray-800/50":"bg-gray-50"}`},
+                  h('p',{className:`text-base font-bold ${m.color}`},m.value),
+                  h('p',{className:`text-xs ${sub}`},m.label)
+                ))
+              ),
+              h('div',{className:`rounded-xl p-3 ${dark?"bg-gray-800/30":"bg-gray-50"}`},
+                h('p',{className:`text-xs font-medium mb-2 ${sub}`},"Histórico de preços"),
+                h(Sparkline,{data:hist,color:r.trend==="down"?"#34d399":r.trend==="up"?"#f87171":"#60a5fa"})
+              )
+            );
+          })
+        )
+      ),
+
+      // ── ALERTS ────────────────────────────────────────────────────────
+      page==="alerts"&&h('div',{},
+        h('h1',{className:`text-2xl font-bold mb-6 ${txt}`},"🔔 Alertas Automáticos"),
+        h('div',{className:`rounded-2xl border p-5 mb-6 ${card}`},
+          h('p',{className:`text-sm font-semibold mb-3 ${txt}`},"Criar novo alerta"),
+          h('div',{className:"grid grid-cols-1 sm:grid-cols-4 gap-3"},
+            h('input',{value:newRoute,onChange:e=>setNewRoute(e.target.value),placeholder:"Rota (ex: GRU → LIS)",
+              className:`sm:col-span-2 px-3 py-2 rounded-xl border text-sm outline-none ${dark?"bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:border-violet-500":"bg-gray-50 border-gray-200 text-gray-900 focus:border-violet-400"}`}),
+            h('input',{value:newPrice,onChange:e=>setNewPrice(e.target.value),type:"number",placeholder:"Preço limite (R$)",
+              className:`px-3 py-2 rounded-xl border text-sm outline-none ${dark?"bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:border-violet-500":"bg-gray-50 border-gray-200 text-gray-900 focus:border-violet-400"}`}),
+            h('button',{onClick:addAlert,className:"px-4 py-2 rounded-xl text-white text-sm font-medium hover:opacity-90",style:{background:"linear-gradient(135deg,#7c3aed,#06b6d4)"}},"+ Criar alerta")
+          ),
+          h('div',{className:"flex gap-3 mt-3"},
+            ...["📧 E-mail","💬 WhatsApp","✈️ Telegram"].map((c,i)=>
+              h('label',{key:i,className:"flex items-center gap-1.5 cursor-pointer"},
+                h('input',{type:"checkbox",defaultChecked:i===0,style:{accentColor:"#7c3aed"}}),
+                h('span',{className:`text-xs ${sub}`},c)
+              )
+            )
+          )
+        ),
+        h('div',{className:"space-y-3"},
+          alerts.map(a=>h('div',{key:a.id,className:`rounded-2xl border p-4 flex items-center justify-between ${card}`},
+            h('div',{className:"flex items-center gap-3"},
+              h('div',{className:`w-9 h-9 rounded-xl flex items-center justify-center ${a.triggered?"bg-amber-500/20":a.active?"bg-emerald-500/20":"bg-gray-500/20"}`},
+                h(Bell,{size:16,className:a.triggered?"text-amber-400":a.active?"text-emerald-400":"text-gray-400"})
+              ),
+              h('div',{},
+                h('p',{className:`text-sm font-medium ${txt}`},a.route),
+                h('p',{className:`text-xs ${sub}`},"Avisar abaixo de R$"+a.threshold.toLocaleString()+" · ",
+                  h('span',{className:a.type==="email"?"text-blue-400":a.type==="whatsapp"?"text-emerald-400":"text-cyan-400"},
+                    a.type==="email"?"📧 E-mail":a.type==="whatsapp"?"💬 WhatsApp":"✈️ Telegram"))
+              ),
+              a.triggered&&h('span',{className:"text-xs bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full font-medium"},"⚡ Disparado")
+            ),
+            h('button',{onClick:()=>toggleAlert(a.id),
+              className:`relative w-9 h-5 rounded-full transition-colors ${a.active?"bg-violet-600":dark?"bg-gray-700":"bg-gray-300"}`,
+            },
+              h('span',{className:`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${a.active?"translate-x-4":"translate-x-0.5"}`})
+            )
+          ))
+        )
+      ),
+
+      // ── DASHBOARD ─────────────────────────────────────────────────────
+      page==="dashboard"&&h('div',{},
+        h('h1',{className:`text-2xl font-bold mb-6 ${txt}`},"📈 Dashboard"),
+        h('div',{className:"grid grid-cols-2 md:grid-cols-4 gap-4 mb-6"},
+          ...[
+            {v:"4",l:"Rotas monitoradas",icon:h(Globe,{size:17}),s:"+1 esta semana",c:"violet"},
+            {v:"3",l:"Alertas ativos",icon:h(Bell,{size:17}),s:"2 disparados",c:"cyan"},
+            {v:"R$1.8k",l:"Economia potencial",icon:h(TrendDown,{size:17}),s:"em voos monitorados",c:"emerald"},
+            {v:"7",l:"Quedas de preço",icon:h(Zap,{size:17}),s:"últimos 30 dias",c:"amber"},
+          ].map((s,i)=>h('div',{key:i,className:`rounded-2xl border p-4 ${card}`},
+            h('div',{className:`w-8 h-8 rounded-xl flex items-center justify-center mb-2 ${s.c==="violet"?"bg-violet-500/20 text-violet-400":s.c==="cyan"?"bg-cyan-500/20 text-cyan-400":s.c==="emerald"?"bg-emerald-500/20 text-emerald-400":"bg-amber-500/20 text-amber-400"}`},s.icon),
+            h('p',{className:`text-2xl font-bold ${txt}`},s.v),
+            h('p',{className:`text-xs font-medium ${dark?"text-gray-300":"text-gray-700"}`},s.l),
+            h('p',{className:`text-xs ${sub}`},s.s)
+          ))
+        ),
+        h('h2',{className:`text-base font-bold mb-3 ${txt}`},"Histórico de rotas"),
+        h('div',{className:`rounded-2xl border overflow-hidden ${card}`},
+          h('table',{className:"w-full text-sm"},
+            h('thead',{},
+              h('tr',{className:dark?"bg-gray-800/60":"bg-gray-50"},
+                ...["Rota","Mín","Atual","Média","Variação","Tendência"].map(col=>
+                  h('th',{key:col,className:`px-4 py-3 text-left text-xs font-semibold ${sub}`},col)
+                )
+              )
+            ),
+            h('tbody',{},
+              MON_ROUTES.map((r,i)=>h('tr',{key:i,className:`border-t transition-colors ${dark?"border-gray-800/50 hover:bg-gray-800/30":"border-gray-100 hover:bg-gray-50"}`},
+                h('td',{className:`px-4 py-3 font-medium ${txt}`},`${r.origin} → ${r.dest}`),
+                h('td',{className:"px-4 py-3 text-emerald-400 font-semibold"},`R$${r.min.toLocaleString()}`),
+                h('td',{className:`px-4 py-3 ${dark?"text-gray-200":"text-gray-700"}`},`R$${r.cur.toLocaleString()}`),
+                h('td',{className:`px-4 py-3 ${sub}`},`R$${r.avg.toLocaleString()}`),
+                h('td',{className:`px-4 py-3 font-medium ${r.var<0?"text-emerald-400":"text-red-400"}`},(r.var>0?"+":"")+r.var.toFixed(1)+"%"),
+                h('td',{className:"px-4 py-3"},
+                  h(Sparkline,{data:[r.min,r.avg,r.cur,r.avg*.9,r.cur],height:28,color:r.trend==="down"?"#34d399":r.trend==="up"?"#f87171":"#60a5fa"})
+                )
+              ))
+            )
+          )
+        )
+      ),
+
+      // ── CALENDAR ──────────────────────────────────────────────────────
+      page==="calendar"&&h('div',{},
+        h('div',{className:"flex items-center justify-between mb-6 flex-wrap gap-3"},
+          h('h1',{className:`text-2xl font-bold ${txt}`},"📅 Calendário de Tarifas"),
+          h('div',{className:"flex items-center gap-3"},
+            h('span',{className:"flex items-center gap-1 text-xs text-emerald-400"},h('span',{className:"w-3 h-3 rounded-sm bg-emerald-500/40 inline-block"}),"Mais barato"),
+            h('span',{className:"flex items-center gap-1 text-xs text-red-400"},h('span',{className:"w-3 h-3 rounded-sm bg-red-500/40 inline-block"}),"Mais caro")
+          )
+        ),
+        h('div',{className:`rounded-2xl border p-5 mb-6 ${card}`},
+          h('div',{className:"flex items-center justify-between mb-4"},
+            h('button',{className:`p-2 rounded-lg ${dark?"hover:bg-gray-800 text-gray-400":"hover:bg-gray-100 text-gray-500"}`},"←"),
+            h('p',{className:`font-bold text-lg ${txt}`},"Junho 2026"),
+            h('button',{className:`p-2 rounded-lg ${dark?"hover:bg-gray-800 text-gray-400":"hover:bg-gray-100 text-gray-500"}`},"→")
+          ),
+          h('div',{className:"grid grid-cols-7 gap-1 mb-2"},
+            ...["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"].map(d=>h('p',{key:d,className:`text-center text-xs font-semibold ${sub}`},d))
+          ),
+          h('div',{className:"grid grid-cols-7 gap-1"},
+            ...[...Array(6)].map((_,i)=>h('div',{key:"e"+i})),
+            ...Object.entries(CAL_PRICES).map(([day,price])=>{
+              const isCheap=price<=minCal*1.1,isExp=price>=maxCal*.9;
+              return h('div',{key:day,
+                className:`rounded-xl p-1.5 cursor-pointer transition-all hover:scale-105 text-center ${isCheap?(dark?"bg-emerald-500/20 border border-emerald-500/30":"bg-emerald-50 border border-emerald-200"):isExp?(dark?"bg-red-500/20 border border-red-500/30":"bg-red-50 border border-red-200"):(dark?"bg-gray-800/50 border border-gray-700/30":"bg-gray-50 border border-gray-200")}`
+              },
+                h('p',{className:`text-xs font-medium ${sub}`},day),
+                h('p',{className:`text-xs font-bold ${isCheap?"text-emerald-400":isExp?"text-red-400":dark?"text-gray-200":"text-gray-700"}`},`R$${price}`)
+              );
+            })
+          )
+        )
+      ),
+
+      // ── MAP ───────────────────────────────────────────────────────────
+      page==="map"&&h('div',{},
+        h('h1',{className:`text-2xl font-bold mb-1 ${txt}`},"🗺️ Mapa de Oportunidades"),
+        h('p',{className:`text-sm mb-6 ${sub}`},"Saindo do Rio de Janeiro — menores preços encontrados"),
+        h('div',{className:`relative rounded-2xl border overflow-hidden ${card}`,style:{height:400}},
+          h('div',{className:"absolute inset-0",style:{background:dark?"linear-gradient(160deg,#0a1628,#0d2444 40%,#0a1628)":"linear-gradient(160deg,#dbeafe,#e0f2fe)"}}),
+          // Origin
+          h('div',{className:"absolute",style:{left:"35%",top:"65%",transform:"translate(-50%,-50%)"}},
+            h('div',{className:"relative"},
+              h('div',{className:"w-4 h-4 rounded-full border-2 border-white shadow-lg",style:{background:"#7c3aed"}}),
+              h('div',{className:"absolute -top-7 left-1/2 px-2 py-0.5 rounded-full text-white text-xs font-medium whitespace-nowrap shadow",style:{transform:"translateX(-50%)",background:"#7c3aed"}},"Rio de Janeiro"),
+              h('div',{className:"absolute inset-0 rounded-full anim-ping",style:{background:"rgba(124,58,237,0.3)"}})
+            )
+          ),
+          // Destinations
+          ...MAP_DESTS.map((d,i)=>h('div',{key:i,className:"absolute cursor-pointer group",style:{left:d.x+"%",top:d.y+"%",transform:"translate(-50%,-50%)"},
+            onClick:()=>setPage("results")},
+            h('div',{className:`rounded-xl px-2.5 py-1.5 border transition-all duration-200 group-hover:scale-110 shadow-lg ${dark?"bg-gray-900/90 border-gray-700 hover:border-violet-500/50":"bg-white/90 border-gray-200 hover:border-violet-400"}`},
+              h('div',{className:"w-1.5 h-1.5 rounded-full bg-cyan-400 mx-auto mb-0.5"}),
+              h('p',{className:`text-xs font-semibold whitespace-nowrap ${txt}`},d.city),
+              h('p',{className:"text-xs text-cyan-400 font-bold whitespace-nowrap"},`R$${d.price.toLocaleString()}`)
+            )
+          )),
+          h('div',{className:`absolute bottom-4 left-4 text-xs px-3 py-1.5 rounded-xl backdrop-blur ${dark?"bg-gray-800/80 text-gray-400":"bg-white/80 text-gray-500"}`},"💡 Clique em um destino para ver voos")
+        ),
+        h('div',{className:"grid grid-cols-2 md:grid-cols-4 gap-3 mt-4"},
+          MAP_DESTS.slice(0,4).map((d,i)=>h('button',{key:i,onClick:()=>setPage("results"),
+            className:`rounded-xl p-3 border text-left transition-all hover:scale-[1.02] ${card}`},
+            h('p',{className:`text-sm font-semibold ${txt}`},d.city),
+            h('p',{className:"text-lg font-bold text-cyan-400"},`R$${d.price.toLocaleString()}`),
+            h('p',{className:`text-xs ${sub}`},"Ver voos →")
+          ))
+        )
+      )
+    ),
+
+    // FOOTER
+    h('footer',{className:`border-t mt-12 py-8 ${dark?"border-gray-800/60":"border-gray-200"}`},
+      h('div',{className:"max-w-7xl mx-auto px-4"},
+        h('div',{className:"grid grid-cols-2 md:grid-cols-4 gap-6 mb-6"},
+          h('div',{},
+            h('div',{className:"flex items-center gap-2 mb-3"},
+              h('div',{className:"w-6 h-6 rounded-lg flex items-center justify-center",style:{background:"linear-gradient(135deg,#7c3aed,#06b6d4)"}},h(Plane,{size:11,className:"text-white"})),
+              h('span',{className:"font-bold text-sm",style:{background:"linear-gradient(90deg,#a78bfa,#22d3ee)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}},"AirDeals")
+            ),
+            h('p',{className:`text-xs ${sub}`},"Monitore passagens aéreas e economize com inteligência artificial.")
+          ),
+          ...[
+            {title:"Produto",items:["Buscar voos","Monitorar preços","Alertas","Calendário"]},
+            {title:"Integrações",items:["Amadeus API","Kiwi API","TravelPayouts","API REST"]},
+            {title:"Empresa",items:["Sobre nós","Blog","Termos","Privacidade"]},
+          ].map((c,i)=>h('div',{key:i},
+            h('p',{className:`text-xs font-bold mb-2 ${dark?"text-gray-300":"text-gray-700"}`},c.title),
+            ...c.items.map(item=>h('p',{key:item,className:`text-xs mb-1.5 cursor-pointer hover:underline ${sub}`},item))
+          ))
+        ),
+        h('div',{className:`pt-4 border-t flex items-center justify-between text-xs ${dark?"border-gray-800/60 text-gray-600":"border-gray-200 text-gray-400"}`},
+          h('p',{},"© 2026 AirDeals. Todos os direitos reservados."),
+          h('p',{className:"flex items-center gap-1"},"Powered by ",h('span',{className:"text-violet-400"},"Anthropic AI"))
+        )
+      )
+    )
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(h(App));
+</script>
+</body>
+</html>
